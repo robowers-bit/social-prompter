@@ -356,8 +356,22 @@ html, body {
   font-family: var(--font-body);
   -webkit-appearance: none;
   min-height: 80px;
+  max-height: 80px;
+  overflow-y: auto;
+  transition: max-height 0.25s ease;
 }
+#sourceTextarea.expanded { max-height: 280px; }
 #sourceTextarea::placeholder { color: var(--text-dim); }
+.source-expand-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  padding: 4px 6px;
+  cursor: pointer;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
 .source-gen-btn {
   display: flex;
   align-items: center;
@@ -387,15 +401,31 @@ html, body {
   border-radius: var(--radius);
   overflow: hidden;
 }
-#hookOptionsCard h3 {
+#hookOptionsCard .hook-options-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+#hookOptionsCard .hook-options-title {
   font-size: 12px;
   font-weight: 700;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--border);
 }
+#hookOptionsCard .hook-options-chevron {
+  font-size: 14px;
+  color: var(--accent);
+  transition: transform 0.2s;
+}
+#hookOptionsCard.collapsed .hook-options-chevron { transform: rotate(-90deg); }
+#hookOptionsCard.collapsed .hook-options-title::after { content: ' — Click to expand'; font-weight: 400; text-transform: none; letter-spacing: 0; }
+#hookOptionsCard.collapsed #hookOptionsList { display: none; }
 .hook-option-item {
   padding: 12px 14px;
   border-top: 1px solid var(--border);
@@ -404,6 +434,13 @@ html, body {
   gap: 8px;
 }
 .hook-option-item:first-of-type { border-top: none; }
+.hook-option-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+}
 .hook-option-text {
   font-size: 14px;
   line-height: 1.55;
@@ -423,6 +460,25 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 .hook-option-use:active { opacity: 0.75; }
+
+/* Save button */
+#saveBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  cursor: pointer;
+  width: 100%;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.2s, border-color 0.2s;
+}
+#saveBtn.saved {
+  color: var(--accent2);
+  border-color: var(--accent2);
+}
 
 /* Beat cards */
 #beatsContainer {
@@ -1288,6 +1344,7 @@ html, body {
     <div class="source-section">
       <div class="source-section-header">
         <h3>Source Material</h3>
+        <button class="source-expand-btn" onclick="toggleSourceExpand()" title="Expand / collapse">&#8597;</button>
       </div>
       <textarea
         id="sourceTextarea"
@@ -1301,7 +1358,10 @@ html, body {
 
     <!-- Hook options card -->
     <div id="hookOptionsCard">
-      <h3>Hook Options</h3>
+      <div class="hook-options-header" onclick="toggleHookOptions()">
+        <span class="hook-options-title">Hook Options</span>
+        <span class="hook-options-chevron">&#9660;</span>
+      </div>
       <div id="hookOptionsList"></div>
     </div>
 
@@ -1325,6 +1385,7 @@ html, body {
       <button class="btn btn-accent" onclick="refineWithAI()">&#10024; Refine with AI</button>
       <button class="btn btn-primary" onclick="startPrompter()">Start &#8594;</button>
     </div>
+    <button id="saveBtn" onclick="manualSave()">Save</button>
   </div>
 
 </div>
@@ -1916,7 +1977,7 @@ async function generateHookOptions() {
 
   showLoading('Generating hook options…');
 
-  const systemPrompt = `You are an expert social media scriptwriter. Given source material, generate 3 compelling hook options that would stop someone scrolling. Each hook should be 1-2 sentences, emotionally resonant, and create curiosity. Return ONLY valid JSON: {"hooks":[{"text":"hook text"}]}. No markdown, no explanation.`;
+  const systemPrompt = `You are an expert social media scriptwriter. Given source material, generate 3 compelling hook options that would stop someone scrolling. Each hook should be 1-2 sentences, emotionally resonant, and create curiosity. For each hook also include a "label" field: 1-5 words describing WHY it works (e.g. "Cliffhanger", "Personal attachment", "Leads with keyword", "Attention-grabbing question", "Surprising stat"). Return ONLY valid JSON: {"hooks":[{"text":"hook text","label":"why it works"}]}. No markdown, no explanation.`;
   const userPrompt = `SOURCE MATERIAL:\n${srcText}`;
 
   try {
@@ -1939,11 +2000,19 @@ function renderHookOptions(script) {
     return;
   }
   card.style.display = 'block';
+  // Restore expanded state (expanded by default when freshly generated)
+  if (script._hookOptionsCollapsed) {
+    card.classList.add('collapsed');
+  } else {
+    card.classList.remove('collapsed');
+  }
   list.innerHTML = '';
-  script.hookOptions.forEach((h, i) => {
+  script.hookOptions.forEach((h) => {
     const div = document.createElement('div');
     div.className = 'hook-option-item';
+    const labelHtml = h.label ? `<div class="hook-option-label">${escHtml(h.label)}</div>` : '';
     div.innerHTML = `
+      ${labelHtml}
       <div class="hook-option-text">${escHtml(h.text)}</div>
       <button class="hook-option-use">Use this</button>
     `;
@@ -1954,12 +2023,45 @@ function renderHookOptions(script) {
   });
 }
 
+function toggleSourceExpand() {
+  document.getElementById('sourceTextarea').classList.toggle('expanded');
+}
+
+function manualSave() {
+  saveCurrentScriptFromUI();
+  flashSaved();
+}
+
+let _savedTimer = null;
+function flashSaved() {
+  const btn = document.getElementById('saveBtn');
+  if (!btn) return;
+  btn.textContent = '✓ Saved';
+  btn.classList.add('saved');
+  clearTimeout(_savedTimer);
+  _savedTimer = setTimeout(() => {
+    btn.textContent = 'Save';
+    btn.classList.remove('saved');
+  }, 2000);
+}
+
+function toggleHookOptions() {
+  const script = getCurrentScript();
+  if (!script) return;
+  script._hookOptionsCollapsed = !script._hookOptionsCollapsed;
+  const card = document.getElementById('hookOptionsCard');
+  card.classList.toggle('collapsed', script._hookOptionsCollapsed);
+}
+
 function useHookOption(text, script) {
   const hookBeat = script.beats.find(b => b.type === 'hook');
   if (hookBeat) {
     hookBeat.content = text;
+    script._hookOptionsCollapsed = true;
     saveScripts();
     renderBeats(script);
+    renderHookOptions(script);
+    flashSaved();
   }
 }
 
