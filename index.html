@@ -904,6 +904,7 @@ html, body {
   z-index: 1;
   opacity: 0;
   transition: opacity 0.4s;
+  pointer-events: none;
 }
 #cameraPreview.visible { opacity: 0.38; }
 
@@ -1030,7 +1031,7 @@ html, body {
   align-items: center;
   gap: 4px;
 }
-#speedSlider .slider-label {
+.slider-label {
   font-size: 10px;
   color: rgba(255,255,255,0.4);
   font-weight: 600;
@@ -1054,7 +1055,7 @@ html, body {
   transition: background 0.15s;
 }
 .speed-step.selected { background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.4); }
-.speed-step span { width: 12px; height: 2px; background: rgba(255,255,255,0.6); border-radius: 2px; display: block; }
+.speed-step { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.6); }
 
 /* Font size controls — left edge */
 #fontControls {
@@ -1560,6 +1561,7 @@ html, body {
 
   <!-- Font size controls -->
   <div id="fontControls">
+    <span class="slider-label">SIZE</span>
     <button class="font-btn" onclick="adjustFont(1)">+</button>
     <button class="font-btn" onclick="adjustFont(-1)">&#8722;</button>
   </div>
@@ -2679,7 +2681,11 @@ function setupPrompterGestures() {
   }, { passive: true });
 
   outer.addEventListener('touchend', (e) => {
-    if (isDragging) { isDragging = false; return; }
+    const wasDragging = isDragging;
+    isDragging = false;
+    dragStartY = null;
+    setTimeout(() => { isTouchEvent = false; }, 500);
+    if (wasDragging) return;
     handleTap();
   }, { passive: true });
 
@@ -2794,8 +2800,7 @@ function buildSpeedSlider() {
     const step = document.createElement('div');
     step.className = 'speed-step' + (i === STATE.scrollSpeed ? ' selected' : '');
     step.dataset.speed = i;
-    const bar = document.createElement('span');
-    step.appendChild(bar);
+    step.textContent = i;
     step.addEventListener('click', () => setSpeed(i));
     slider.appendChild(step);
   }
