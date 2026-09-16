@@ -799,7 +799,8 @@ html, body {
 /* ============================================================
    CONFIRM MODAL
    ============================================================ */
-#confirmModal {
+#confirmModal,
+#lengthWarningModal {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.8);
@@ -809,7 +810,8 @@ html, body {
   padding: 16px;
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
-#confirmModal.hidden { display: none; }
+#confirmModal.hidden,
+#lengthWarningModal.hidden { display: none; }
 .modal-sheet {
   background: var(--surface);
   border-radius: 18px;
@@ -2262,6 +2264,10 @@ function buildSuggestionEl(beat, sug, script) {
         saveScripts();
         renderBeats(script);
       }
+    } else if (sug.type === 'cut') {
+      script.beats = script.beats.filter(b => b.id !== beat.id);
+      saveScripts();
+      renderBeats(script);
     } else {
       beat.content = sug.rewrite;
       beat.suggestions = beat.suggestions.filter(s => s !== sug);
