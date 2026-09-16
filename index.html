@@ -1876,6 +1876,10 @@ async function generateHookOptions() {
     showError('Paste some source material first.', false);
     return;
   }
+  if (/^https?:\/\//i.test(srcText)) {
+    showError('Paste the article text, not the link — open the article, select all the text, and paste it here.', false);
+    return;
+  }
   if (!STATE.apiKey) {
     showError('No API key — tap the gear to add one.');
     return;
@@ -2539,7 +2543,10 @@ async function callClaude(systemPrompt, userPrompt, maxTokens) {
 
   const data = await response.json();
   const rawText = data.content?.[0]?.text || '';
-  const jsonText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+  // Strip markdown fences first, then try to extract the outermost JSON object
+  const stripped = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+  const match = stripped.match(/\{[\s\S]*\}/);
+  const jsonText = match ? match[0] : stripped;
   return JSON.parse(jsonText);
 }
 
