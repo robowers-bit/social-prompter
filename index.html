@@ -375,7 +375,9 @@ html, body {
   letter-spacing: 0.3px;
   text-align: right;
 }
-#durationBar span { color: var(--accent); }
+#durationBar span { color: #fff; }
+#durationBar span.dur-warn { color: #ff9f0a; }
+#durationBar span.dur-danger { color: #ff3b30; }
 
 .p1-header-left {
   display: flex;
@@ -443,12 +445,11 @@ html, body {
   padding: 12px 14px;
   font-family: var(--font-body);
   -webkit-appearance: none;
-  min-height: 80px;
-  max-height: 80px;
+  height: 80px;
   overflow-y: auto;
-  transition: max-height 0.25s ease;
+  transition: height 0.3s ease;
 }
-#sourceTextarea.expanded { max-height: 560px; }
+#sourceTextarea.expanded { height: 320px; }
 #sourceTextarea::placeholder { color: var(--text-dim); }
 .source-expand-btn {
   background: transparent;
@@ -1370,6 +1371,18 @@ html, body {
   </div>
 </div>
 
+<div id="lengthWarningModal" class="hidden">
+  <div class="modal-sheet">
+    <h3 id="lengthWarningTitle">Script is too long</h3>
+    <p id="lengthWarningBody"></p>
+    <div class="modal-actions">
+      <button class="btn btn-accent" id="lengthSlimBtn">✨ Suggest ways to slim it down</button>
+      <button class="btn btn-primary" id="lengthContinueBtn">Continue anyway →</button>
+      <button class="btn btn-ghost" onclick="hideLengthWarning()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
      ERROR TOAST
      ============================================================ -->
@@ -1617,7 +1630,7 @@ html, body {
    ============================================================ */
 const BEAT_TEMPLATES = [
   { type: 'hook',       label: 'Hook — 3-7 seconds', desc: 'The feeling that stops them. Think visual hook too — can start on best pix, or you doing something (even mundane/intriguing)' },
-  { type: 'superhook',  label: 'Why They Should Listen', desc: '10 seconds max. Introduce yourself, or your work in this area — e.g. I\'ve been covering this story for x years / I was there when X happened / I\'ve been speaking to people inside X' },
+  { type: 'superhook',  label: 'Why They Should Listen — 10 seconds max.', desc: 'Introduce yourself, or your work in this area — e.g. I\'ve been covering this story for x years / I was there when X happened / I\'ve been speaking to people inside X' },
   { type: 'openloop',   label: 'Open Loop',  desc: 'Promise your audience a revelation without revealing it yet. Tell them what\'s coming — but make them wait. This creates the tension that stops viewers scrolling away before you\'ve delivered.' },
   { type: 'body',       label: 'Body',       desc: 'Deliver real value' },
   { type: 'payoff',     label: 'Payoff and Call-to-Action — 10 seconds max.', desc: 'Close the loop, better than promised' },
@@ -1697,7 +1710,9 @@ function updateDurationCounter() {
   } else {
     label = `~${secs}s`;
   }
-  bar.innerHTML = `Script length: <span>${label}</span>`;
+  const cls = secs > 120 ? 'dur-danger' : secs > 90 ? 'dur-warn' : '';
+  bar.innerHTML = `Script length: <span${cls ? ` class="${cls}"` : ''}>${label}</span>`;
+  return secs;
 }
 
 function loadScripts() {
@@ -2055,7 +2070,46 @@ function showModeSelect() {
     showError('Write some content in your beats first.', false);
     return;
   }
+  const secs = scriptDurationSecs(script);
+  if (secs > 90) {
+    showLengthWarning(secs);
+    return;
+  }
   showScreen('modeSelect');
+}
+
+function scriptDurationSecs(script) {
+  let words = 0;
+  script.beats.forEach(b => {
+    words += (b.content || '').trim().split(/\s+/).filter(Boolean).length;
+  });
+  return Math.round(words / 3);
+}
+
+function formatDuration(secs) {
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}m${s > 0 ? ' ' + s + 's' : ''}`;
+}
+
+function showLengthWarning(secs) {
+  const dur = formatDuration(secs);
+  document.getElementById('lengthWarningBody').textContent =
+    `This script is already ~${dur} long — social videos over 1:30 lose most viewers. Want AI suggestions for slimming it down?`;
+  document.getElementById('lengthSlimBtn').onclick = () => {
+    hideLengthWarning();
+    slimDownWithAI();
+  };
+  document.getElementById('lengthContinueBtn').onclick = () => {
+    hideLengthWarning();
+    showScreen('modeSelect');
+  };
+  document.getElementById('lengthWarningModal').classList.remove('hidden');
+}
+
+function hideLengthWarning() {
+  document.getElementById('lengthWarningModal').classList.add('hidden');
 }
 
 function selectModeAndStart(mode) {
@@ -2099,6 +2153,9 @@ function relabelBeats(beats) {
     } else if (b.type === 'rehook') {
       b.label = rehookNum > 1 ? `Rehook ${rehookNum}` : 'Rehook';
       rehookNum++;
+    } else if (b.type === 'superhook' && !b.label.includes('10 seconds')) {
+      b.label = 'Why They Should Listen — 10 seconds max.';
+      b.desc = 'Introduce yourself, or your work in this area — e.g. I\'ve been covering this story for x years / I was there when X happened / I\'ve been speaking to people inside X';
     }
   });
 }
@@ -2393,6 +2450,70 @@ Only include beats that need improvement. No markdown, no explanation.`;
 
     if (suggestions.length === 0) {
       showError('Your script looks great — no suggestions!', false);
+    }
+  } catch(err) {
+    hideLoading();
+    showError(classifyError(err));
+  }
+}
+
+/* ============================================================
+   SLIM DOWN WITH AI
+   ============================================================ */
+async function slimDownWithAI() {
+  const script = getCurrentScript();
+  if (!script) return;
+  if (!STATE.apiKey) {
+    showError('No API key — tap the gear to add one.');
+    return;
+  }
+
+  showLoading('Analysing script for cuts…');
+
+  const secs = scriptDurationSecs(script);
+  const dur = formatDuration(secs);
+  const beatsText = script.beats.map((b, i) =>
+    `[${i}] ${b.label.toUpperCase()}: ${b.content || '(empty)'}`
+  ).join('\n\n');
+
+  const systemPrompt = `You are an expert social media editor helping journalists cut a script that is too long for social video. The script is approximately ${dur} long — the target is under 1 minute 30 seconds (about 270 words). Your job is to find cuts, not polish.
+
+PRIORITIES in order:
+1. Whole body blocks to cut: if there are multiple body beats and removing one wouldn't break the story, flag it with type "cut" and explain why it's dispensable.
+2. Repetition: any point made more than once — flag the repeat with type "repetition" and suggest which version to keep.
+3. Verbose beats: beats that say the same thing in too many words — flag with type "trim" and give a tighter rewrite (aim to halve the word count).
+4. Over-long hook or superhook: if either runs past 15 words, flag with type "trim".
+
+For each suggestion, be direct: "Cut this — the story works without it" or "This repeats beat X, use the shorter version."
+
+Return ONLY valid JSON:
+{"suggestions":[{"beatIndex":0,"type":"cut|repetition|trim","issue":"brief reason","rewrite":"tighter version, or empty string if recommending full cut"}]}
+Only include beats that need a cut or trim. No markdown, no explanation.`;
+
+  const userPrompt = `SCRIPT BEATS:\n${beatsText}`;
+
+  try {
+    const parsed = await callClaude(systemPrompt, userPrompt, 1500);
+    hideLoading();
+
+    const suggestions = parsed.suggestions || [];
+    script.beats.forEach(b => { b.suggestions = []; });
+    suggestions.forEach(sug => {
+      const beat = script.beats[sug.beatIndex];
+      if (beat) {
+        beat.suggestions.push({
+          type: sug.type || '',
+          issue: sug.issue || '',
+          rewrite: sug.rewrite || '',
+        });
+      }
+    });
+    saveScripts();
+    showScreen('phase1');
+    renderBeats(script);
+
+    if (suggestions.length === 0) {
+      showError('No obvious cuts found — try tightening individual beats manually.', false);
     }
   } catch(err) {
     hideLoading();
