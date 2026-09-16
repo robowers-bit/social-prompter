@@ -224,6 +224,64 @@ html, body {
   letter-spacing: 0.8px;
   margin-bottom: 10px;
 }
+.recently-deleted-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 20px 0 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.deleted-script-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  opacity: 0.7;
+}
+.deleted-script-info { flex: 1; min-width: 0; }
+.deleted-script-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.deleted-script-date { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.deleted-script-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.deleted-restore-btn {
+  background: rgba(76,175,80,0.15);
+  border: 1px solid rgba(76,175,80,0.4);
+  color: var(--accent2);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(76,175,80,0.4);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.deleted-forever-btn {
+  background: rgba(229,57,53,0.1);
+  border: 1px solid rgba(229,57,53,0.3);
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
 .script-list { display: flex; flex-direction: column; gap: 10px; }
 .script-item {
   display: flex;
@@ -1340,6 +1398,14 @@ html, body {
     <div class="script-list" id="scriptList">
       <div class="home-empty">No scripts yet. Tap "+ New Script" to create one.</div>
     </div>
+    <!-- Recently deleted -->
+    <div id="deletedSection" style="display:none;">
+      <div class="recently-deleted-header" onclick="toggleDeletedSection()">
+        <span>Recently Deleted</span>
+        <span id="deletedChevron">&#9660;</span>
+      </div>
+      <div class="script-list" id="deletedList"></div>
+    </div>
   </div>
 </div>
 
@@ -1593,6 +1659,10 @@ let STATE = {
 
   // Clip numbering per session
   clipNumber: 0,
+
+  // Auto-export tracking
+  pendingExport: false,
+  sessionExported: false,
 };
 
 /* Speed → pixels per second */
@@ -1603,6 +1673,7 @@ const SPEED_MAP = [18, 36, 60, 90, 130];
    ============================================================ */
 function saveScripts() {
   try { localStorage.setItem('sp2_scripts', JSON.stringify(STATE.scripts)); } catch(e) {}
+  STATE.pendingExport = true;
 }
 
 function updateDurationCounter() {
@@ -1632,6 +1703,9 @@ function loadScripts() {
     const raw = localStorage.getItem('sp2_scripts');
     if (raw) STATE.scripts = JSON.parse(raw);
   } catch(e) { STATE.scripts = []; }
+  // Purge anything deleted more than 30 days ago
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  STATE.scripts = STATE.scripts.filter(s => !s.deletedAt || s.deletedAt > thirtyDaysAgo);
 }
 
 function getScript(id) {
@@ -1799,31 +1873,60 @@ function showHome() {
 
 function renderScriptList() {
   const list = document.getElementById('scriptList');
-  // Sort by updatedAt descending
-  const sorted = [...STATE.scripts].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  if (sorted.length === 0) {
+  const active = STATE.scripts
+    .filter(s => !s.deletedAt)
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+  if (active.length === 0) {
     list.innerHTML = '<div class="home-empty">No scripts yet. Tap &ldquo;+ New Script&rdquo; to create one.</div>';
-    return;
-  }
-  list.innerHTML = '';
-  sorted.forEach(script => {
-    const item = document.createElement('div');
-    item.className = 'script-item';
-    const d = new Date(script.updatedAt || script.createdAt || 0);
-    const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    item.innerHTML = `
-      <div class="script-item-info">
-        <div class="script-item-name">${escHtml(script.name)}</div>
-        <div class="script-item-date">${dateStr}</div>
-      </div>
-      <button class="script-item-del" data-id="${escAttr(script.id)}" title="Delete">&#128465;</button>
-    `;
-    item.querySelector('.script-item-info').addEventListener('click', () => openScript(script.id));
-    item.querySelector('.script-item-del').addEventListener('click', (e) => {
-      e.stopPropagation();
-      confirmDeleteScript(script.id);
+  } else {
+    list.innerHTML = '';
+    active.forEach(script => {
+      const item = document.createElement('div');
+      item.className = 'script-item';
+      const d = new Date(script.updatedAt || script.createdAt || 0);
+      const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      item.innerHTML = `
+        <div class="script-item-info">
+          <div class="script-item-name">${escHtml(script.name)}</div>
+          <div class="script-item-date">${dateStr}</div>
+        </div>
+        <button class="script-item-del" title="Move to Recently Deleted">&#128465;</button>
+      `;
+      item.querySelector('.script-item-info').addEventListener('click', () => openScript(script.id));
+      item.querySelector('.script-item-del').addEventListener('click', (e) => {
+        e.stopPropagation();
+        softDeleteScript(script.id);
+      });
+      list.appendChild(item);
     });
-    list.appendChild(item);
+  }
+
+  // Recently deleted section
+  const deleted = STATE.scripts
+    .filter(s => s.deletedAt)
+    .sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+  const section = document.getElementById('deletedSection');
+  const deletedList = document.getElementById('deletedList');
+  section.style.display = deleted.length > 0 ? 'block' : 'none';
+  deletedList.innerHTML = '';
+  deleted.forEach(script => {
+    const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - script.deletedAt) / 86400000));
+    const item = document.createElement('div');
+    item.className = 'deleted-script-item';
+    item.innerHTML = `
+      <div class="deleted-script-info">
+        <div class="deleted-script-name">${escHtml(script.name)}</div>
+        <div class="deleted-script-date">Deleted · ${daysLeft}d left</div>
+      </div>
+      <div class="deleted-script-actions">
+        <button class="deleted-restore-btn">Restore</button>
+        <button class="deleted-forever-btn">&#128465;</button>
+      </div>
+    `;
+    item.querySelector('.deleted-restore-btn').addEventListener('click', () => restoreScript(script.id));
+    item.querySelector('.deleted-forever-btn').addEventListener('click', () => permanentDeleteScript(script.id));
+    deletedList.appendChild(item);
   });
 }
 
@@ -1842,18 +1945,42 @@ function openScript(id) {
   showPhase1(script);
 }
 
-function confirmDeleteScript(id) {
+function softDeleteScript(id) {
+  const script = getScript(id);
+  if (!script) return;
+  script.deletedAt = Date.now();
+  saveScripts();
+  renderScriptList();
+}
+
+function restoreScript(id) {
+  const script = getScript(id);
+  if (!script) return;
+  script.deletedAt = null;
+  saveScripts();
+  renderScriptList();
+}
+
+function permanentDeleteScript(id) {
   const script = getScript(id);
   if (!script) return;
   showConfirmModal(
-    'Delete Script',
-    `Delete "${script.name}"? This cannot be undone.`,
+    'Delete Forever',
+    `Permanently delete "${script.name}"? This cannot be undone.`,
     () => {
       STATE.scripts = STATE.scripts.filter(s => s.id !== id);
       saveScripts();
       renderScriptList();
     }
   );
+}
+
+function toggleDeletedSection() {
+  const list = document.getElementById('deletedList');
+  const chevron = document.getElementById('deletedChevron');
+  const collapsed = list.style.display === 'none';
+  list.style.display = collapsed ? 'flex' : 'none';
+  chevron.textContent = collapsed ? '▾' : '▸';
 }
 
 /* ============================================================
@@ -1902,6 +2029,15 @@ function showPhase1(script) {
 
 function goHome() {
   saveCurrentScriptFromUI();
+  // Auto-export once per session whenever there are unsaved changes
+  if (STATE.pendingExport && !STATE.sessionExported) {
+    const active = STATE.scripts.filter(s => !s.deletedAt);
+    if (active.length > 0) {
+      exportScripts();
+      STATE.sessionExported = true;
+      STATE.pendingExport = false;
+    }
+  }
   showHome();
 }
 
