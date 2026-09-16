@@ -759,6 +759,20 @@ html, body {
 }
 
 /* Bullet mode container */
+/* Camera live preview behind the prompter */
+#cameraPreview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+#cameraPreview.visible { opacity: 0.38; }
+
 #bulletContainer {
   display: none;
   padding: 15vh 14px 80vh;
@@ -786,6 +800,15 @@ html, body {
 .bullet-card.past-bullet {
   opacity: 0.35;
 }
+.bullet-time {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.active-bullet .bullet-time { color: var(--accent); }
 
 #readingGradient {
   position: absolute;
@@ -1319,6 +1342,9 @@ html, body {
      ============================================================ -->
 <div id="phase2" class="screen">
 
+  <!-- Live camera feed behind text -->
+  <video id="cameraPreview" autoplay muted playsinline></video>
+
   <div id="progressBar"></div>
   <div id="readingGradient"></div>
   <div id="readingLine"></div>
@@ -1445,6 +1471,9 @@ let STATE = {
   // Timer
   timerInterval: null,
   timerSeconds: 0,
+
+  // Clip numbering per session
+  clipNumber: 0,
 };
 
 /* Speed → pixels per second */
@@ -1999,8 +2028,8 @@ async function generateBullets(script) {
     `[${i}] ${b.label.toUpperCase()}: ${b.content || '(empty)'}`
   ).join('\n\n');
 
-  const systemPrompt = `You are an expert teleprompter coach. Condense each beat into a short speaking cue (1-2 sentences max) that a presenter can glance at to remember what to say. Keep the natural voice. Return ONLY valid JSON:
-{"bullets":[{"beatIndex":0,"bullet":"short cue text"}]}
+  const systemPrompt = `You are an expert teleprompter coach. Condense each beat into a short speaking cue (1-2 sentences max) that a presenter can glance at to remember what to say. Keep the natural voice. Do NOT include any label, heading, or colon prefix in the bullet text — just the cue itself. Return ONLY valid JSON:
+{"bullets":[{"beatIndex":0,"bullet":"short cue text with no label prefix"}]}
 Include all beats. No markdown, no explanation.`;
   const userPrompt = `SCRIPT BEATS:\n${beatsText}`;
 
@@ -2029,9 +2058,10 @@ async function startPrompter() {
 
   STATE.playbackMode = script.playbackMode || 'teleprompter';
   STATE.scrollPos = 0;
-  STATE.isPaused = false;
+  STATE.isPaused = true;
   STATE.isScrolling = false;
   STATE.bulletIndex = 0;
+  STATE.clipNumber = 0;
 
   if (STATE.playbackMode === 'bullets') {
     // Check if bullets exist; if not, generate them
@@ -2063,7 +2093,12 @@ async function startPrompter() {
 
   showScreen('phase2');
   await requestMediaPermissions();
-  showCountdown();
+  // Start RAF loop so tap-to-pause and progress bar work, but scrolling is paused until record
+  if (STATE.playbackMode === 'teleprompter') {
+    beginScrolling();
+    STATE.isPaused = true;
+    updatePauseOverlay();
+  }
 }
 
 function setupTeleprompterMode() {
@@ -2087,11 +2122,28 @@ function setupBulletMode(script) {
   STATE.bulletBeats = beats;
   STATE.bulletIndex = 0;
 
+  // Calculate cumulative time ranges (~3 words per second of spoken content)
+  let cumSecs = 0;
   beats.forEach((beat, i) => {
+    const wordCount = (beat.content || '').trim().split(/\s+/).filter(Boolean).length;
+    const beatSecs = Math.max(3, Math.round(wordCount / 3));
+    const start = cumSecs;
+    const end = cumSecs + beatSecs;
+    cumSecs = end;
+
     const card = document.createElement('div');
     card.className = 'bullet-card' + (i === 0 ? ' active-bullet' : '');
     card.dataset.bulletIdx = i;
-    card.textContent = beat.bullet;
+
+    const timeEl = document.createElement('div');
+    timeEl.className = 'bullet-time';
+    timeEl.textContent = `${start}–${end}s`;
+
+    const textEl = document.createElement('div');
+    textEl.textContent = beat.bullet;
+
+    card.appendChild(timeEl);
+    card.appendChild(textEl);
     container.appendChild(card);
   });
 
@@ -2228,8 +2280,11 @@ function setupPrompterGestures() {
   let dragStartY = null;
   let dragStartPos = null;
   let isDragging = false;
+  let isTouchEvent = false;
 
+  /* ── Touch ── */
   outer.addEventListener('touchstart', (e) => {
+    isTouchEvent = true;
     dragStartY = e.touches[0].clientY;
     dragStartPos = STATE.scrollPos;
     isDragging = false;
@@ -2241,21 +2296,70 @@ function setupPrompterGestures() {
     const dy = dragStartY - e.touches[0].clientY;
     if (Math.abs(dy) > 8) isDragging = true;
     if (isDragging) {
-      const inner = document.getElementById('prompterInner');
-      const outerEl = document.getElementById('prompterOuter');
-      const maxScroll = inner.scrollHeight - outerEl.clientHeight;
-      STATE.scrollPos = Math.max(0, Math.min(maxScroll, dragStartPos + dy));
-      inner.style.transform = `translateY(-${STATE.scrollPos}px)`;
-      updateProgressBar();
+      applyTeleprompterScroll(dragStartPos + dy);
     }
   }, { passive: true });
 
   outer.addEventListener('touchend', (e) => {
     if (isDragging) { isDragging = false; return; }
+    handleTap();
+  }, { passive: true });
 
+  /* ── Mouse drag (desktop) ── */
+  outer.addEventListener('mousedown', (e) => {
+    if (isTouchEvent) return;
+    if (STATE.playbackMode !== 'teleprompter') return;
+    dragStartY = e.clientY;
+    dragStartPos = STATE.scrollPos;
+    isDragging = false;
+  });
+
+  outer.addEventListener('mousemove', (e) => {
+    if (isTouchEvent) return;
+    if (STATE.playbackMode !== 'teleprompter') return;
+    if (dragStartY === null) return;
+    const dy = dragStartY - e.clientY;
+    if (Math.abs(dy) > 6) isDragging = true;
+    if (isDragging) {
+      if (!STATE.isPaused) { STATE.isPaused = true; updatePauseOverlay(); }
+      applyTeleprompterScroll(dragStartPos + dy);
+    }
+  });
+
+  outer.addEventListener('mouseup', (e) => {
+    if (isTouchEvent) return;
+    const wasDragging = isDragging;
+    isDragging = false;
+    dragStartY = null;
+    if (!wasDragging) handleTap();
+  });
+
+  outer.addEventListener('mouseleave', () => {
+    isDragging = false;
+    dragStartY = null;
+  });
+
+  /* ── Mouse wheel (desktop scroll when paused) ── */
+  outer.addEventListener('wheel', (e) => {
+    if (STATE.playbackMode !== 'teleprompter') return;
+    e.preventDefault();
+    if (!STATE.isPaused) { STATE.isPaused = true; updatePauseOverlay(); }
+    applyTeleprompterScroll(STATE.scrollPos + e.deltaY);
+  }, { passive: false });
+
+  /* ── Shared helpers ── */
+  function applyTeleprompterScroll(targetPos) {
+    const inner = document.getElementById('prompterInner');
+    const outerEl = document.getElementById('prompterOuter');
+    const maxScroll = inner.scrollHeight - outerEl.clientHeight;
+    STATE.scrollPos = Math.max(0, Math.min(maxScroll, targetPos));
+    inner.style.transform = `translateY(-${STATE.scrollPos}px)`;
+    updateProgressBar();
+  }
+
+  function handleTap() {
     const now = Date.now();
     if (now - lastTap < 300) {
-      // Double-tap
       clearTimeout(tapTimer);
       lastTap = 0;
       if (STATE.playbackMode === 'bullets') {
@@ -2266,7 +2370,6 @@ function setupPrompterGestures() {
     } else {
       lastTap = now;
       tapTimer = setTimeout(() => {
-        // Single tap
         if (STATE.playbackMode === 'bullets') {
           bulletAdvance();
         } else {
@@ -2276,7 +2379,7 @@ function setupPrompterGestures() {
         }
       }, 280);
     }
-  }, { passive: true });
+  }
 }
 
 /* ============================================================
@@ -2381,6 +2484,13 @@ function startRecording() {
   document.getElementById('recIndicator').classList.add('active');
   document.getElementById('deleteClipBtn').style.display = 'none';
 
+  // Auto-start scrolling when record begins (teleprompter mode)
+  if (STATE.playbackMode === 'teleprompter') {
+    STATE.isPaused = false;
+    STATE.lastTimestamp = null;
+    updatePauseOverlay();
+  }
+
   // Start timer
   STATE.timerSeconds = 0;
   updateTimerDisplay();
@@ -2407,6 +2517,12 @@ function stopRecording() {
   document.getElementById('recordBtn').classList.remove('recording');
   document.getElementById('recIndicator').classList.remove('active');
 
+  // Pause scroll when recording stops
+  if (STATE.playbackMode === 'teleprompter') {
+    STATE.isPaused = true;
+    updatePauseOverlay();
+  }
+
   // Freeze timer
   clearInterval(STATE.timerInterval);
   STATE.timerInterval = null;
@@ -2429,7 +2545,11 @@ function handleRecordingStop() {
   STATE.lastBlobUrl = URL.createObjectURL(blob);
 
   const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
-  const filename = `social-prompter-clip-${Date.now()}.${ext}`;
+  STATE.clipNumber++;
+  const script = getCurrentScript();
+  const rawTitle = (script && script.name) ? script.name : 'clip';
+  const safeTitle = rawTitle.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const filename = `${safeTitle}_s${STATE.clipNumber}.${ext}`;
   const a = document.createElement('a');
   a.href = STATE.lastBlobUrl;
   a.download = filename;
@@ -2476,6 +2596,10 @@ async function requestMediaPermissions() {
       video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
       audio: true,
     });
+    const preview = document.getElementById('cameraPreview');
+    preview.srcObject = STATE.stream;
+    preview.play().catch(() => {});
+    preview.classList.add('visible');
   } catch(e) {
     console.warn('Media permissions denied:', e);
   }
@@ -2498,6 +2622,10 @@ function goBackToPhase1() {
     STATE.stream.getTracks().forEach(t => t.stop());
     STATE.stream = null;
   }
+
+  const preview = document.getElementById('cameraPreview');
+  preview.classList.remove('visible');
+  preview.srcObject = null;
 
   document.getElementById('phase2').classList.remove('active');
   const script = getCurrentScript();
