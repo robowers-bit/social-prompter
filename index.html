@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<title>Teleprompter</title>
+<title>Social Prompter</title>
 <style>
 /* ============================================================
    BASE & RESET
@@ -51,76 +51,6 @@ html, body {
 .screen.active { display: flex; }
 
 /* ============================================================
-   API KEY MODAL
-   ============================================================ */
-#apiModal {
-  position: fixed;
-  inset: 0;
-  background: var(--bg);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  /* Use flex-start + padding so content stays in the upper viewport and
-     the Save button is never hidden behind the iOS software keyboard */
-  justify-content: flex-start;
-  padding: 0 24px;
-  /* Allow scrolling if the keyboard pushes content down */
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  gap: 20px;
-}
-#apiModal.hidden { display: none; }
-
-/* Spacer that pushes the form down to roughly vertical-center on a normal
-   screen, but collapses when the keyboard is up so the button stays reachable */
-#apiModalSpacer {
-  flex-shrink: 1;
-  min-height: 40px;
-  height: 12vh;
-}
-/* Bottom breathing room so Save button is never flush with the home indicator */
-#apiModalBottom {
-  min-height: max(40px, env(safe-area-inset-bottom, 20px));
-  flex-shrink: 0;
-}
-
-#apiModal .modal-icon {
-  font-size: 48px;
-  margin-bottom: 8px;
-}
-#apiModal h2 {
-  font-size: 22px;
-  font-weight: 700;
-  text-align: center;
-}
-#apiModal p {
-  font-size: 14px;
-  color: var(--text-dim);
-  text-align: center;
-  line-height: 1.6;
-  max-width: 320px;
-}
-#apiModal p a {
-  color: var(--blue);
-  text-decoration: none;
-}
-#apiKeyInput {
-  width: 100%;
-  max-width: 360px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  color: var(--text);
-  font-size: 14px;
-  padding: 14px 16px;
-  font-family: monospace;
-  outline: none;
-  -webkit-appearance: none;
-}
-#apiKeyInput:focus { border-color: var(--blue); }
-
-/* ============================================================
    BUTTONS — shared
    ============================================================ */
 .btn {
@@ -132,15 +62,12 @@ html, body {
   border-radius: var(--radius);
   font-family: var(--font-body);
   font-weight: 600;
-  /* cursor:pointer is required for iOS Safari to treat the element as tappable */
   cursor: pointer;
   -webkit-tap-highlight-color: rgba(255,255,255,0.1);
   transition: opacity 0.15s, transform 0.1s;
   user-select: none;
-  /* Prevent touch callout / selection on long press */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
-  /* Ensure the element is recognised as interactive by iOS */
   touch-action: manipulation;
 }
 .btn:active { opacity: 0.75; transform: scale(0.97); }
@@ -187,78 +114,302 @@ html, body {
   padding: 8px;
   line-height: 1;
   -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.btn-icon:active { opacity: 0.6; }
+
+/* ============================================================
+   API KEY MODAL
+   ============================================================ */
+#apiModal {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 24px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  gap: 20px;
+}
+#apiModal.hidden { display: none; }
+
+#apiModalSpacer {
+  flex-shrink: 1;
+  min-height: 40px;
+  height: 12vh;
+}
+#apiModalBottom {
+  min-height: max(40px, env(safe-area-inset-bottom, 20px));
+  flex-shrink: 0;
+}
+
+#apiModal .modal-icon { font-size: 48px; margin-bottom: 8px; }
+#apiModal h2 { font-size: 22px; font-weight: 700; text-align: center; }
+#apiModal p {
+  font-size: 14px; color: var(--text-dim); text-align: center;
+  line-height: 1.6; max-width: 320px;
+}
+#apiModal p a { color: var(--blue); text-decoration: none; }
+#apiKeyInput {
+  width: 100%; max-width: 360px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 14px;
+  padding: 14px 16px;
+  font-family: monospace;
+  outline: none;
+  -webkit-appearance: none;
+}
+#apiKeyInput:focus { border-color: var(--blue); }
+
+/* ============================================================
+   HOME SCREEN
+   ============================================================ */
+#homeScreen {
+  flex-direction: column;
+}
+.home-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 12px;
+  padding-top: max(16px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.home-header h1 {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: var(--text);
+}
+.home-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+.home-new-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 18px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  margin-bottom: 24px;
+}
+.home-new-btn:active { opacity: 0.8; transform: scale(0.98); }
+.home-section-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+}
+.script-list { display: flex; flex-direction: column; gap: 10px; }
+.script-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 12px 14px 16px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.script-item:active { opacity: 0.7; }
+.script-item-info { flex: 1; min-width: 0; }
+.script-item-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+.script-item-date {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.script-item-del {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  font-size: 18px;
+  padding: 6px 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  opacity: 0.7;
+}
+.script-item-del:active { opacity: 1; }
+.home-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 /* ============================================================
-   PHASE 1 — SCRIPT EDITOR
+   PHASE 1 — BEAT EDITOR
    ============================================================ */
-#phase1 {
-  /* display:none comes from .screen; don't override .screen.active here */
-  flex-direction: column;
-}
+#phase1 { flex-direction: column; }
 
-/* Header bar */
 .p1-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 10px 12px;
+  padding-top: max(10px, env(safe-area-inset-top));
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   min-height: 52px;
+  gap: 8px;
 }
-.p1-header h1 {
-  font-size: 17px;
+.p1-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+#scriptNameInput {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.3px;
+  font-family: var(--font-body);
+  outline: none;
+  width: 100%;
+  -webkit-appearance: none;
+  padding: 4px 0;
+  border-bottom: 1px solid transparent;
+}
+#scriptNameInput:focus {
+  border-bottom-color: var(--blue);
 }
 
-/* Script area wrapper — scrollable */
-#scriptWrapper {
+/* Scrollable beats area */
+#beatWrapper {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 0 0 120px 0;
+  padding: 0 0 180px 0;
 }
 
-/* Hooks card */
-#hooksCard {
-  display: none;
-  margin: 12px 16px;
+/* Source material section */
+.source-section {
+  margin: 14px 14px 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px;
+  overflow: hidden;
 }
-#hooksCard h3 {
+.source-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.source-section-header h3 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+#sourceTextarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.55;
+  padding: 12px 14px;
+  font-family: var(--font-body);
+  -webkit-appearance: none;
+  min-height: 80px;
+}
+#sourceTextarea::placeholder { color: var(--text-dim); }
+.source-gen-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 28px);
+  margin: 0 14px 14px;
+  padding: 12px 16px;
+  background: rgba(245,166,35,0.12);
+  border: 1px solid rgba(245,166,35,0.4);
+  border-radius: 10px;
+  color: var(--accent);
   font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  justify-content: center;
+}
+.source-gen-btn:active { opacity: 0.7; }
+
+/* Hook options card */
+#hookOptionsCard {
+  display: none;
+  margin: 10px 14px 0;
+  background: var(--surface);
+  border: 1px solid rgba(245,166,35,0.35);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+#hookOptionsCard h3 {
+  font-size: 12px;
   font-weight: 700;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
 }
-.hook-item {
+.hook-option-item {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px 0;
-  border-top: 1px solid var(--border);
 }
-.hook-item:first-of-type { border-top: none; padding-top: 0; }
-.hook-num {
-  font-size: 11px;
-  color: var(--text-dim);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.hook-text {
-  font-size: 15px;
-  line-height: 1.5;
+.hook-option-item:first-of-type { border-top: none; }
+.hook-option-text {
+  font-size: 14px;
+  line-height: 1.55;
   color: var(--text);
 }
-.hook-use {
+.hook-option-use {
   align-self: flex-start;
   background: var(--accent);
   color: #000;
@@ -268,111 +419,216 @@ html, body {
   border-radius: 8px;
   border: none;
   cursor: pointer;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-.hook-use:active { opacity: 0.75; }
+.hook-option-use:active { opacity: 0.75; }
 
-/* Script editor segments container */
-#segmentsContainer {
-  padding: 12px 16px 0;
-}
-
-/* Each segment = original text + optional warning + optional rewrite */
-.seg {
-  margin-bottom: 4px;
-}
-.seg-text {
-  font-size: 16px;
-  line-height: 1.65;
-  color: var(--text);
-  white-space: pre-wrap;
-  word-break: break-word;
-  padding: 8px 10px;
-  border-radius: 8px;
-  outline: none;
-  -webkit-user-modify: read-write-plaintext-only;
-  min-height: 32px;
-  border: 1px solid transparent;
-}
-.seg-text:focus { border-color: var(--blue); }
-.seg-text.flagged { background: rgba(245,166,35,0.12); border-color: rgba(245,166,35,0.4); }
-
-.warning-label {
+/* Beat cards */
+#beatsContainer {
+  padding: 12px 14px 0;
   display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--accent);
-  font-weight: 600;
-  margin: 4px 10px 2px;
+  flex-direction: column;
+  gap: 10px;
 }
+.beat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.beat-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  gap: 8px;
+}
+.beat-card-header-info { flex: 1; min-width: 0; }
+.beat-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 2px;
+}
+.beat-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+.beat-del-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  font-size: 16px;
+  padding: 4px 6px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  opacity: 0.6;
+}
+.beat-del-btn:active { opacity: 1; }
+.beat-textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border);
+  outline: none;
+  resize: none;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  padding: 12px 14px;
+  font-family: var(--font-body);
+  -webkit-appearance: none;
+  min-height: 90px;
+}
+.beat-textarea::placeholder { color: var(--text-dim); }
 
-.rewrite-card {
-  margin: 6px 4px 10px;
-  background: rgba(76,175,80,0.1);
-  border: 1px solid rgba(76,175,80,0.35);
+/* AI suggestion card inside a beat */
+.beat-suggestion {
+  margin: 0 12px 12px;
+  background: rgba(76,175,80,0.08);
+  border: 1px solid rgba(76,175,80,0.3);
   border-radius: 10px;
   padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
-.rewrite-label {
+.beat-suggestion-issue {
   font-size: 11px;
   font-weight: 700;
   color: var(--accent2);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
 }
-.rewrite-text {
-  font-size: 14px;
-  line-height: 1.6;
+.beat-suggestion-type {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+.beat-suggestion-rewrite {
+  font-size: 13px;
+  line-height: 1.55;
   color: var(--text);
 }
-.rewrite-accept {
-  align-self: flex-start;
+.beat-suggestion-actions {
+  display: flex;
+  gap: 8px;
+}
+.beat-sug-accept {
   background: var(--accent2);
   color: #fff;
   font-size: 12px;
   font-weight: 700;
-  padding: 7px 16px;
+  padding: 6px 14px;
   border-radius: 8px;
   border: none;
   cursor: pointer;
+  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-.rewrite-accept:active { opacity: 0.75; }
-
-/* Fallback plain textarea (pre-analysis) */
-#plainScript {
-  display: block;
-  width: 100%;
-  min-height: calc(100vh - 180px);
+.beat-sug-accept:active { opacity: 0.75; }
+.beat-sug-dismiss {
   background: transparent;
-  border: none;
-  outline: none;
-  resize: none;
-  color: var(--text);
-  font-size: 16px;
-  line-height: 1.65;
-  padding: 16px;
-  font-family: var(--font-body);
-  -webkit-appearance: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
-#plainScript::placeholder { color: var(--text-dim); }
+.beat-sug-dismiss:active { opacity: 0.75; }
 
-/* Bottom action bar Phase 1 */
+/* Add body button */
+#addBodyBtn {
+  margin: 4px 14px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  width: calc(100% - 28px);
+}
+#addBodyBtn:active { opacity: 0.6; background: var(--surface); }
+
+/* Phase 1 footer */
 .p1-footer {
   position: fixed;
   bottom: 0;
   left: 0; right: 0;
-  padding: 12px 16px;
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
-  background: linear-gradient(to top, var(--bg) 80%, transparent);
+  padding: 10px 14px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 75%, transparent);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   z-index: 10;
+}
+
+/* Mode toggle */
+.mode-toggle {
+  display: flex;
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+.mode-toggle-btn {
+  flex: 1;
+  padding: 9px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.mode-toggle-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.p1-footer-row2 {
+  display: flex;
+  gap: 8px;
+}
+.p1-footer-row2 .btn-accent {
+  width: auto;
+  flex: 1;
+  font-size: 14px;
+  padding: 13px 12px;
+}
+.p1-footer-row2 .btn-primary {
+  width: auto;
+  flex: 1;
+  font-size: 14px;
+  padding: 13px 12px;
+  max-width: none;
 }
 
 /* ============================================================
@@ -399,10 +655,7 @@ html, body {
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-#loadingOverlay p {
-  font-size: 15px;
-  color: var(--text-dim);
-}
+#loadingOverlay p { font-size: 15px; color: var(--text-dim); }
 
 /* ============================================================
    CONFIRM MODAL
@@ -429,12 +682,7 @@ html, body {
 }
 .modal-sheet h3 { font-size: 17px; font-weight: 700; }
 .modal-sheet p { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
-.modal-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 4px;
-}
+.modal-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
 
 /* ============================================================
    ERROR TOAST
@@ -476,12 +724,9 @@ html, body {
    ============================================================ */
 #phase2 {
   background: #000;
-  /* No position override — inherits position:fixed; inset:0 from .screen
-     so the container correctly fills the full viewport on iOS */
   overflow: hidden;
 }
 
-/* Progress bar */
 #progressBar {
   position: absolute;
   top: 0; left: 0;
@@ -492,7 +737,6 @@ html, body {
   transition: width 0.3s linear;
 }
 
-/* Teleprompter scroll container */
 #prompterOuter {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -501,10 +745,8 @@ html, body {
 
 #prompterInner {
   padding: 15vh 28px 80vh;
-  /* Script text starts near top, leaves space below for reading zone */
 }
 
-/* The script text itself */
 #prompterText {
   font-size: 32px;
   line-height: 1.55;
@@ -516,7 +758,35 @@ html, body {
   outline: none;
 }
 
-/* Reading zone gradient — top fade to darken above reading line */
+/* Bullet mode container */
+#bulletContainer {
+  display: none;
+  padding: 15vh 14px 80vh;
+  flex-direction: column;
+  gap: 10px;
+}
+.bullet-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 18px 16px;
+  font-size: 22px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.6);
+  font-weight: 500;
+  transition: all 0.2s;
+  border-left: 4px solid transparent;
+}
+.bullet-card.active-bullet {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.2);
+  border-left-color: var(--accent);
+  color: #fff;
+}
+.bullet-card.past-bullet {
+  opacity: 0.35;
+}
+
 #readingGradient {
   position: absolute;
   top: 0; left: 0; right: 0;
@@ -526,7 +796,6 @@ html, body {
   z-index: 5;
 }
 
-/* Reading line indicator */
 #readingLine {
   position: absolute;
   top: 15%;
@@ -537,7 +806,6 @@ html, body {
   pointer-events: none;
 }
 
-/* ── Controls overlay ── */
 /* Back button top-left */
 #backBtn {
   position: absolute;
@@ -556,7 +824,7 @@ html, body {
 }
 #backBtn:active { background: rgba(255,255,255,0.2); }
 
-/* REC indicator top-right */
+/* REC indicator + timer top-right */
 #recIndicator {
   position: absolute;
   top: max(14px, env(safe-area-inset-top));
@@ -585,6 +853,12 @@ html, body {
   font-weight: 700;
   color: var(--danger);
   letter-spacing: 0.5px;
+}
+#recTimer {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Speed slider — right edge */
@@ -676,12 +950,29 @@ html, body {
   align-items: center;
   justify-content: center;
 }
-#pauseOverlay .pause-icon span {
-  font-size: 28px;
-  color: rgba(255,255,255,0.6);
-}
+#pauseOverlay .pause-icon span { font-size: 28px; color: rgba(255,255,255,0.6); }
 
-/* Record button area — bottom center */
+/* Bullet hint overlay */
+#bulletHint {
+  position: absolute;
+  bottom: max(102px, calc(env(safe-area-inset-bottom) + 82px));
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  font-weight: 600;
+  z-index: 30;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+#bulletHint.show { opacity: 1; }
+
+/* Record button area */
 #recordArea {
   position: absolute;
   bottom: max(20px, env(safe-area-inset-bottom));
@@ -693,7 +984,6 @@ html, body {
   gap: 0;
 }
 
-/* Delete last clip — bottom left */
 #deleteClipBtn {
   position: absolute;
   bottom: max(28px, env(safe-area-inset-bottom));
@@ -712,7 +1002,6 @@ html, body {
 }
 #deleteClipBtn:active { background: rgba(229,57,53,0.3); }
 
-/* Record button */
 #recordBtn {
   width: 70px;
   height: 70px;
@@ -728,9 +1017,7 @@ html, body {
   box-shadow: 0 0 0 6px rgba(229,57,53,0.2);
 }
 #recordBtn:active { transform: scale(0.93); }
-#recordBtn.recording {
-  background: #fff;
-}
+#recordBtn.recording { background: #fff; }
 #recordBtn .rec-inner {
   width: 26px;
   height: 26px;
@@ -745,7 +1032,6 @@ html, body {
   background: var(--danger);
 }
 
-/* Tooltip for Files app */
 #filesTooltip {
   position: absolute;
   bottom: max(102px, calc(env(safe-area-inset-bottom) + 82px));
@@ -778,7 +1064,6 @@ html, body {
 }
 #filesTooltip.show { opacity: 1; }
 
-/* Delete confirm flash */
 #deleteConfirm {
   position: absolute;
   bottom: max(102px, calc(env(safe-area-inset-bottom) + 82px));
@@ -831,7 +1116,7 @@ html, body {
 }
 
 /* ============================================================
-   INLINE EDIT OVERLAY (Phase 2 double-tap edit)
+   INLINE EDIT OVERLAY (Phase 2 double-tap)
    ============================================================ */
 #inlineEditOverlay {
   position: fixed;
@@ -867,10 +1152,7 @@ html, body {
   outline: none;
   -webkit-appearance: none;
 }
-#inlineEditOverlay .edit-actions {
-  display: flex;
-  gap: 10px;
-}
+#inlineEditOverlay .edit-actions { display: flex; gap: 10px; }
 
 /* ============================================================
    UTILITY
@@ -884,14 +1166,12 @@ html, body {
 <!-- ============================================================
      API KEY MODAL
      ============================================================ -->
-<div id="apiModal">
-  <!-- Flexible spacer — shrinks when keyboard is up so button stays visible -->
+<div id="apiModal" class="hidden">
   <div id="apiModalSpacer"></div>
-
   <div class="modal-icon">🎙️</div>
-  <h2>Teleprompter Setup</h2>
+  <h2>Social Prompter Setup</h2>
   <p>
-    This app uses the Anthropic API to analyse your script.
+    This app uses the Anthropic API for AI features.
     Get a free key at <strong>console.anthropic.com</strong>
     and paste it below.
   </p>
@@ -904,12 +1184,9 @@ html, body {
     autocapitalize="none"
     spellcheck="false"
   >
-  <!-- Inline status shown during connection test -->
   <div id="apiStatus" style="display:none;font-size:13px;text-align:center;padding:4px 0;width:100%;max-width:360px;"></div>
   <button class="btn btn-primary" id="saveKeyBtn" onclick="saveApiKey()">Save Key</button>
   <p style="font-size:12px;margin-top:-4px;">Your key is stored only on this device.</p>
-
-  <!-- Bottom safe-area padding so button isn't flush with home indicator -->
   <div id="apiModalBottom"></div>
 </div>
 
@@ -918,22 +1195,19 @@ html, body {
      ============================================================ -->
 <div id="loadingOverlay" class="hidden">
   <div class="spinner"></div>
-  <p>Analysing your script…</p>
+  <p id="loadingMsg">Working…</p>
 </div>
 
 <!-- ============================================================
-     CONFIRM MODAL (AI analysis prompt)
+     CONFIRM MODAL
      ============================================================ -->
 <div id="confirmModal" class="hidden">
   <div class="modal-sheet">
-    <h3>AI Script Analysis</h3>
-    <p>
-      Would you like AI help with your script? We'll suggest an opening hook
-      and flag passages that might lose your audience.
-    </p>
+    <h3 id="confirmTitle">Confirm</h3>
+    <p id="confirmBody">Are you sure?</p>
     <div class="modal-actions">
-      <button class="btn btn-accent" onclick="runAnalysis()">Yes, analyse it</button>
-      <button class="btn btn-ghost" onclick="skipAnalysis()">Skip</button>
+      <button class="btn btn-danger" id="confirmOkBtn">OK</button>
+      <button class="btn btn-ghost" onclick="hideConfirmModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -947,36 +1221,87 @@ html, body {
 </div>
 
 <!-- ============================================================
-     PHASE 1 — SCRIPT EDITOR
+     HOME SCREEN
+     ============================================================ -->
+<div id="homeScreen" class="screen">
+  <div class="home-header">
+    <h1>Social Prompter</h1>
+    <button class="btn-icon" onclick="openSettings()" title="API Key Settings">&#9881;&#65039;</button>
+  </div>
+  <div class="home-body">
+    <button class="home-new-btn" onclick="createNewScript()">
+      <span style="font-size:20px;">+</span> New Script
+    </button>
+    <div class="home-section-label">Saved Scripts</div>
+    <div class="script-list" id="scriptList">
+      <div class="home-empty">No scripts yet. Tap "+ New Script" to create one.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     PHASE 1 — BEAT EDITOR
      ============================================================ -->
 <div id="phase1" class="screen">
 
   <div class="p1-header">
-    <h1>Script</h1>
-    <button class="btn-icon" onclick="openSettings()" title="Settings">⚙️</button>
+    <div class="p1-header-left">
+      <button class="btn-icon" style="font-size:18px;padding:4px 6px;" onclick="goHome()">&#8592;</button>
+      <input
+        type="text"
+        id="scriptNameInput"
+        placeholder="Untitled Script"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="words"
+        spellcheck="false"
+      >
+    </div>
+    <button class="btn-icon" onclick="openSettings()" title="Settings">&#9881;&#65039;</button>
   </div>
 
-  <div id="scriptWrapper">
-    <!-- Hooks card (shown after AI analysis) -->
-    <div id="hooksCard">
-      <h3>✨ Opening Hooks</h3>
-      <div id="hooksList"></div>
+  <div id="beatWrapper">
+    <!-- Source material -->
+    <div class="source-section">
+      <div class="source-section-header">
+        <h3>Source Material</h3>
+      </div>
+      <textarea
+        id="sourceTextarea"
+        placeholder="Paste source material here (article, press release, transcript…)"
+        rows="3"
+      ></textarea>
+    </div>
+    <button class="source-gen-btn" onclick="generateHookOptions()">
+      &#10022; Generate Hook Options
+    </button>
+
+    <!-- Hook options card -->
+    <div id="hookOptionsCard">
+      <h3>Hook Options</h3>
+      <div id="hookOptionsList"></div>
     </div>
 
-    <!-- Plain textarea shown before analysis -->
-    <textarea
-      id="plainScript"
-      placeholder="Paste your script here…"
-      spellcheck="true"
-    ></textarea>
+    <!-- Beats -->
+    <div id="beatsContainer"></div>
 
-    <!-- Segments shown after analysis -->
-    <div id="segmentsContainer"></div>
+    <!-- Add body button -->
+    <button id="addBodyBtn" onclick="addBodyBeat()">+ Add Body</button>
   </div>
 
   <div class="p1-footer">
-    <button class="btn btn-accent" onclick="showConfirmModal()">✨ Analyse with AI</button>
-    <button class="btn btn-primary" onclick="startPrompter()">Start Prompter →</button>
+    <div class="mode-toggle">
+      <button class="mode-toggle-btn active" id="modeWordBtn" onclick="setPlaybackMode('teleprompter')">
+        &#128220; Word for word
+      </button>
+      <button class="mode-toggle-btn" id="modeBulletBtn" onclick="setPlaybackMode('bullets')">
+        &#8226; Guided bullets
+      </button>
+    </div>
+    <div class="p1-footer-row2">
+      <button class="btn btn-accent" onclick="refineWithAI()">&#10024; Refine with AI</button>
+      <button class="btn btn-primary" onclick="startPrompter()">Start &#8594;</button>
+    </div>
   </div>
 
 </div>
@@ -998,38 +1323,43 @@ html, body {
   <div id="readingGradient"></div>
   <div id="readingLine"></div>
 
-  <!-- Scrolling text -->
+  <!-- Scrolling text (teleprompter mode) -->
   <div id="prompterOuter">
     <div id="prompterInner">
       <div id="prompterText"></div>
     </div>
+    <!-- Bullet mode -->
+    <div id="bulletContainer"></div>
   </div>
 
   <!-- Back button -->
-  <button id="backBtn" onclick="goBackToPhase1()">← Edit script</button>
+  <button id="backBtn" onclick="goBackToPhase1()">&#8592; Edit script</button>
 
-  <!-- REC indicator -->
+  <!-- REC indicator + timer -->
   <div id="recIndicator">
     <div id="recDot"></div>
     <span id="recLabel">REC</span>
+    <span id="recTimer">0:00</span>
   </div>
 
   <!-- Speed slider -->
   <div id="speedSlider">
     <span class="slider-label">SPEED</span>
-    <!-- Steps rendered by JS -->
   </div>
 
   <!-- Font size controls -->
   <div id="fontControls">
     <button class="font-btn" onclick="adjustFont(1)">+</button>
-    <button class="font-btn" onclick="adjustFont(-1)">−</button>
+    <button class="font-btn" onclick="adjustFont(-1)">&#8722;</button>
   </div>
 
   <!-- Pause overlay -->
   <div id="pauseOverlay">
-    <div class="pause-icon"><span>⏸</span></div>
+    <div class="pause-icon"><span>&#9646;&#9646;</span></div>
   </div>
+
+  <!-- Bullet hint -->
+  <div id="bulletHint">Tap &#8594; next &nbsp;&#8226;&nbsp; Double-tap &#8592; back</div>
 
   <!-- Record area -->
   <div id="recordArea">
@@ -1070,23 +1400,39 @@ html, body {
 'use strict';
 
 /* ============================================================
+   BEAT TEMPLATES
+   ============================================================ */
+const BEAT_TEMPLATES = [
+  { type: 'hook',       label: 'Hook',       desc: 'The feeling that stops them' },
+  { type: 'superhook',  label: 'Super Hook', desc: 'Earn the right to teach' },
+  { type: 'openloop',   label: 'Open Loop',  desc: 'Commit them to the end' },
+  { type: 'body',       label: 'Body',       desc: 'Deliver real value' },
+  { type: 'payoff',     label: 'Payoff / CTA', desc: 'Close the loop, better than promised' },
+];
+
+const REHOOK_TEMPLATE = { type: 'rehook', label: 'Rehook', desc: 'Re-engage and tease what\'s next' };
+const BODY_TEMPLATE   = { type: 'body',   label: 'Body',   desc: 'Deliver real value' };
+
+/* ============================================================
    STATE
    ============================================================ */
-const STATE = {
+let STATE = {
   apiKey: '',
-  script: '',          // plain text (always source of truth)
-  segments: [],        // [{text, flagged, reason, rewrite}]
-  analysed: false,
+  scripts: [],            // persisted array
+  currentScriptId: null,  // id of the script being edited
 
   // Phase 2
+  playbackMode: 'teleprompter', // 'teleprompter' | 'bullets'
   scrollPos: 0,
-  scrollSpeed: 3,      // 1–5
+  scrollSpeed: 3,
   fontSize: 32,
   isScrolling: false,
   isPaused: false,
   rafId: null,
   lastTimestamp: null,
-  totalHeight: 0,
+
+  // Bullet mode
+  bulletIndex: 0,
 
   // Recording
   mediaRecorder: null,
@@ -1095,36 +1441,113 @@ const STATE = {
   stream: null,
   isRecording: false,
   tooltipShown: false,
+
+  // Timer
+  timerInterval: null,
+  timerSeconds: 0,
 };
 
 /* Speed → pixels per second */
 const SPEED_MAP = [18, 36, 60, 90, 130];
 
 /* ============================================================
+   PERSISTENCE HELPERS
+   ============================================================ */
+function saveScripts() {
+  try { localStorage.setItem('sp2_scripts', JSON.stringify(STATE.scripts)); } catch(e) {}
+}
+
+function loadScripts() {
+  try {
+    const raw = localStorage.getItem('sp2_scripts');
+    if (raw) STATE.scripts = JSON.parse(raw);
+  } catch(e) { STATE.scripts = []; }
+}
+
+function getScript(id) {
+  return STATE.scripts.find(s => s.id === id) || null;
+}
+
+function getCurrentScript() {
+  return getScript(STATE.currentScriptId);
+}
+
+function saveCurrentScriptFromUI() {
+  const script = getCurrentScript();
+  if (!script) return;
+  script.name = document.getElementById('scriptNameInput').value.trim() || 'Untitled Script';
+  script.sourceText = document.getElementById('sourceTextarea').value;
+  script.playbackMode = STATE.playbackMode;
+  script.updatedAt = Date.now();
+  // beats content is synced live via textarea event listeners
+  saveScripts();
+}
+
+/* ============================================================
+   SCRIPT FACTORY
+   ============================================================ */
+function makeBeats() {
+  return BEAT_TEMPLATES.map((t, i) => ({
+    id: 'b' + Date.now() + i,
+    type: t.type,
+    label: t.label,
+    desc: t.desc,
+    content: '',
+    bullet: '',
+    suggestions: [],
+  }));
+}
+
+function makeScript(name) {
+  return {
+    id: 's' + Date.now() + Math.random().toString(36).slice(2),
+    name: name || 'Untitled Script',
+    beats: makeBeats(),
+    hookOptions: [],
+    sourceText: '',
+    playbackMode: 'teleprompter',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+}
+
+/* ============================================================
    INIT
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
-  try { STATE.apiKey = localStorage.getItem('tp_api_key') || ''; } catch(e) { STATE.apiKey = ''; }
-  try { STATE.tooltipShown = localStorage.getItem('tp_tooltip_shown') === '1'; } catch(e) { STATE.tooltipShown = false; }
+  // Migrate old key
+  try {
+    const oldKey = localStorage.getItem('tp_api_key');
+    const newKey = localStorage.getItem('sp2_api_key');
+    if (oldKey && !newKey) {
+      localStorage.setItem('sp2_api_key', oldKey);
+    }
+    STATE.apiKey = localStorage.getItem('sp2_api_key') || '';
+  } catch(e) { STATE.apiKey = ''; }
 
-  if (!STATE.apiKey) {
-    showApiModal();
-  } else {
-    showPhase1();
-  }
+  try { STATE.tooltipShown = localStorage.getItem('sp2_tooltip_shown') === '1'; } catch(e) {}
 
+  loadScripts();
   buildSpeedSlider();
   setupPrompterGestures();
-});
 
-/* Save Key button uses onclick directly in HTML for maximum iOS Safari compatibility */
+  if (!STATE.apiKey) {
+    showApiModal(() => showHome());
+  } else {
+    showHome();
+  }
+});
 
 /* ============================================================
    API KEY MANAGEMENT
    ============================================================ */
-function showApiModal() {
+let _apiModalCallback = null;
+
+function showApiModal(callback) {
+  _apiModalCallback = callback || null;
+  document.getElementById('apiKeyInput').value = STATE.apiKey || '';
+  document.getElementById('apiStatus').style.display = 'none';
   document.getElementById('apiModal').classList.remove('hidden');
-  document.getElementById('phase1').classList.remove('active');
 }
 
 function hideApiModal() {
@@ -1132,66 +1555,111 @@ function hideApiModal() {
 }
 
 function saveApiKey() {
-  // Read value FIRST before any blur/focus changes
   const key = document.getElementById('apiKeyInput').value.trim();
-
   if (!key) {
-    document.getElementById('apiStatus').style.display = 'block';
-    document.getElementById('apiStatus').style.color = '#e53935';
-    document.getElementById('apiStatus').textContent = 'Please paste your API key above.';
+    const el = document.getElementById('apiStatus');
+    el.style.display = 'block';
+    el.style.color = '#e53935';
+    el.textContent = 'Please paste your API key above.';
     return;
   }
-
-  // Save the key — localStorage may be blocked on iOS file:// URLs, so
-  // wrap in try/catch and continue regardless. Key is held in STATE for the session.
   STATE.apiKey = key;
-  try { localStorage.setItem('tp_api_key', key); } catch(e) {}
-  document.getElementById('apiModal').classList.add('hidden');
-  document.getElementById('phase1').classList.add('active');
-}
-
-
-/* Helper: set the inline status message with a colour state */
-function setApiStatus(state, msg) {
-  const el = document.getElementById('apiStatus');
-  el.style.display = 'block';
-  el.style.color = state === 'success' ? '#4caf50' : state === 'error' ? '#e53935' : '#888';
-  el.textContent = msg;
-}
-
-/* Reset the Save Key button to its default state (used when re-opening settings) */
-function resetSaveKeyBtn() {
-  const btn = document.getElementById('saveKeyBtn');
-  btn.textContent = 'Save Key';
-  btn.disabled = false;
-  btn.style.opacity = '1';
-  document.getElementById('apiStatus').style.display = 'none';
-  document.getElementById('apiKeyInput').style.borderColor = '';
+  try {
+    localStorage.setItem('sp2_api_key', key);
+  } catch(e) {}
+  hideApiModal();
+  if (_apiModalCallback) {
+    const cb = _apiModalCallback;
+    _apiModalCallback = null;
+    cb();
+  }
 }
 
 function openSettings() {
   hideError();
-  document.getElementById('apiKeyInput').value = STATE.apiKey || '';
-  resetSaveKeyBtn();
-  document.getElementById('apiModal').classList.remove('hidden');
+  showApiModal(null);
 }
 
 /* ============================================================
-   PHASE 1 — SETUP
+   HOME SCREEN
    ============================================================ */
-function showPhase1() {
-  document.getElementById('phase1').classList.add('active');
+function showHome() {
+  showScreen('homeScreen');
+  renderScriptList();
+}
+
+function renderScriptList() {
+  const list = document.getElementById('scriptList');
+  // Sort by updatedAt descending
+  const sorted = [...STATE.scripts].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  if (sorted.length === 0) {
+    list.innerHTML = '<div class="home-empty">No scripts yet. Tap &ldquo;+ New Script&rdquo; to create one.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  sorted.forEach(script => {
+    const item = document.createElement('div');
+    item.className = 'script-item';
+    const d = new Date(script.updatedAt || script.createdAt || 0);
+    const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    item.innerHTML = `
+      <div class="script-item-info">
+        <div class="script-item-name">${escHtml(script.name)}</div>
+        <div class="script-item-date">${dateStr}</div>
+      </div>
+      <button class="script-item-del" data-id="${escAttr(script.id)}" title="Delete">&#128465;</button>
+    `;
+    item.querySelector('.script-item-info').addEventListener('click', () => openScript(script.id));
+    item.querySelector('.script-item-del').addEventListener('click', (e) => {
+      e.stopPropagation();
+      confirmDeleteScript(script.id);
+    });
+    list.appendChild(item);
+  });
+}
+
+function createNewScript() {
+  const script = makeScript('Untitled Script');
+  STATE.scripts.unshift(script);
+  saveScripts();
+  openScript(script.id);
+}
+
+function openScript(id) {
+  STATE.currentScriptId = id;
+  const script = getCurrentScript();
+  if (!script) return;
+  STATE.playbackMode = script.playbackMode || 'teleprompter';
+  showPhase1(script);
+}
+
+function confirmDeleteScript(id) {
+  const script = getScript(id);
+  if (!script) return;
+  showConfirmModal(
+    'Delete Script',
+    `Delete "${script.name}"? This cannot be undone.`,
+    () => {
+      STATE.scripts = STATE.scripts.filter(s => s.id !== id);
+      saveScripts();
+      renderScriptList();
+    }
+  );
 }
 
 /* ============================================================
    CONFIRM MODAL
    ============================================================ */
-function showConfirmModal() {
-  const text = getScriptText();
-  if (!text.trim()) {
-    showError('Please paste your script before analysing.');
-    return;
-  }
+let _confirmCallback = null;
+
+function showConfirmModal(title, body, onOk) {
+  _confirmCallback = onOk || null;
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmBody').textContent = body;
+  document.getElementById('confirmOkBtn').onclick = () => {
+    hideConfirmModal();
+    if (_confirmCallback) { const cb = _confirmCallback; _confirmCallback = null; cb(); }
+  };
   document.getElementById('confirmModal').classList.remove('hidden');
 }
 
@@ -1199,293 +1667,434 @@ function hideConfirmModal() {
   document.getElementById('confirmModal').classList.add('hidden');
 }
 
-function skipAnalysis() {
-  hideConfirmModal();
+/* ============================================================
+   PHASE 1 — BEAT EDITOR SETUP
+   ============================================================ */
+function showPhase1(script) {
+  showScreen('phase1');
+
+  // Script name
+  const nameInput = document.getElementById('scriptNameInput');
+  nameInput.value = script.name;
+  nameInput.oninput = () => { script.name = nameInput.value || 'Untitled Script'; saveScripts(); };
+  nameInput.onblur = () => { if (!nameInput.value.trim()) nameInput.value = 'Untitled Script'; saveScripts(); };
+
+  // Source text
+  const srcTA = document.getElementById('sourceTextarea');
+  srcTA.value = script.sourceText || '';
+  srcTA.oninput = () => { script.sourceText = srcTA.value; saveScripts(); };
+
+  // Mode toggle
+  updateModeToggle();
+
+  // Hook options
+  renderHookOptions(script);
+
+  // Beats
+  renderBeats(script);
+}
+
+function goHome() {
+  saveCurrentScriptFromUI();
+  showHome();
 }
 
 /* ============================================================
-   AI ANALYSIS — API LOGIC
+   MODE TOGGLE
    ============================================================ */
-async function runAnalysis() {
-  hideConfirmModal();
+function setPlaybackMode(mode) {
+  STATE.playbackMode = mode;
+  updateModeToggle();
+  const script = getCurrentScript();
+  if (script) { script.playbackMode = mode; saveScripts(); }
+}
 
-  const scriptText = getScriptText();
+function updateModeToggle() {
+  document.getElementById('modeWordBtn').classList.toggle('active', STATE.playbackMode === 'teleprompter');
+  document.getElementById('modeBulletBtn').classList.toggle('active', STATE.playbackMode === 'bullets');
+}
+
+/* ============================================================
+   RENDER BEATS
+   ============================================================ */
+function renderBeats(script) {
+  const container = document.getElementById('beatsContainer');
+  container.innerHTML = '';
+
+  // Renumber body/rehook labels
+  relabelBeats(script.beats);
+
+  script.beats.forEach((beat, idx) => {
+    const card = buildBeatCard(script, beat, idx);
+    container.appendChild(card);
+  });
+
+  // Show/hide add body button — always visible
+  document.getElementById('addBodyBtn').style.display = 'flex';
+}
+
+function relabelBeats(beats) {
+  let bodyNum = 1;
+  let rehookNum = 1;
+  beats.forEach(b => {
+    if (b.type === 'body') {
+      b.label = bodyNum > 1 ? `Body ${bodyNum}` : 'Body';
+      bodyNum++;
+    } else if (b.type === 'rehook') {
+      b.label = rehookNum > 1 ? `Rehook ${rehookNum}` : 'Rehook';
+      rehookNum++;
+    }
+  });
+}
+
+function buildBeatCard(script, beat, idx) {
+  const card = document.createElement('div');
+  card.className = 'beat-card';
+  card.dataset.beatId = beat.id;
+
+  // Fixed beats (hook, superhook, openloop, first body, payoff) cannot be deleted
+  const isDeletable = beat.type === 'rehook' || (beat.type === 'body' && countBeatsOfType(script.beats, 'body') > 1);
+
+  card.innerHTML = `
+    <div class="beat-card-header">
+      <div class="beat-card-header-info">
+        <div class="beat-label">${escHtml(beat.label)}</div>
+        <div class="beat-desc">${escHtml(beat.desc)}</div>
+      </div>
+      ${isDeletable ? `<button class="beat-del-btn" title="Remove">&#10005;</button>` : ''}
+    </div>
+    <textarea class="beat-textarea" placeholder="Write your ${escHtml(beat.label.toLowerCase())} here…" rows="4">${escHtml(beat.content)}</textarea>
+  `;
+
+  // Textarea sync
+  const ta = card.querySelector('.beat-textarea');
+  ta.addEventListener('input', () => {
+    beat.content = ta.value;
+    saveScripts();
+  });
+
+  // Delete button
+  if (isDeletable) {
+    card.querySelector('.beat-del-btn').addEventListener('click', () => {
+      script.beats = script.beats.filter(b => b.id !== beat.id);
+      saveScripts();
+      renderBeats(script);
+    });
+  }
+
+  // Render any existing suggestions
+  if (beat.suggestions && beat.suggestions.length > 0) {
+    beat.suggestions.forEach(sug => {
+      const sugEl = buildSuggestionEl(beat, sug, script);
+      card.appendChild(sugEl);
+    });
+  }
+
+  return card;
+}
+
+function countBeatsOfType(beats, type) {
+  return beats.filter(b => b.type === type).length;
+}
+
+function buildSuggestionEl(beat, sug, script) {
+  const div = document.createElement('div');
+  div.className = 'beat-suggestion';
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span class="beat-suggestion-issue">${escHtml(sug.issue || '')}</span>
+      <span class="beat-suggestion-type">${escHtml(sug.type || '')}</span>
+    </div>
+    <div class="beat-suggestion-rewrite">${escHtml(sug.rewrite || '')}</div>
+    <div class="beat-suggestion-actions">
+      <button class="beat-sug-accept">Accept</button>
+      <button class="beat-sug-dismiss">Dismiss</button>
+    </div>
+  `;
+  div.querySelector('.beat-sug-accept').addEventListener('click', () => {
+    beat.content = sug.rewrite;
+    beat.suggestions = beat.suggestions.filter(s => s !== sug);
+    saveScripts();
+    const script2 = getCurrentScript();
+    if (script2) renderBeats(script2);
+  });
+  div.querySelector('.beat-sug-dismiss').addEventListener('click', () => {
+    beat.suggestions = beat.suggestions.filter(s => s !== sug);
+    saveScripts();
+    div.remove();
+  });
+  return div;
+}
+
+/* ============================================================
+   ADD BODY BEAT
+   ============================================================ */
+function addBodyBeat() {
+  const script = getCurrentScript();
+  if (!script) return;
+
+  // Insert Rehook + Body before Payoff
+  const payoffIdx = script.beats.findIndex(b => b.type === 'payoff');
+  const insertAt = payoffIdx !== -1 ? payoffIdx : script.beats.length;
+
+  const ts = Date.now();
+  const rehook = {
+    id: 'b' + ts + 'r',
+    type: REHOOK_TEMPLATE.type,
+    label: REHOOK_TEMPLATE.label,
+    desc: REHOOK_TEMPLATE.desc,
+    content: '', bullet: '', suggestions: [],
+  };
+  const body = {
+    id: 'b' + ts + 'b',
+    type: BODY_TEMPLATE.type,
+    label: BODY_TEMPLATE.label,
+    desc: BODY_TEMPLATE.desc,
+    content: '', bullet: '', suggestions: [],
+  };
+
+  script.beats.splice(insertAt, 0, rehook, body);
+  saveScripts();
+  renderBeats(script);
+
+  // Scroll to new beat
+  setTimeout(() => {
+    const el = document.querySelector(`[data-beat-id="${rehook.id}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+/* ============================================================
+   HOOK OPTIONS FROM SOURCE
+   ============================================================ */
+async function generateHookOptions() {
+  const script = getCurrentScript();
+  if (!script) return;
+
+  const srcText = document.getElementById('sourceTextarea').value.trim();
+  if (!srcText) {
+    showError('Paste some source material first.', false);
+    return;
+  }
   if (!STATE.apiKey) {
-    showError('No API key found. Please add your key in settings.');
+    showError('No API key — tap the gear to add one.');
     return;
   }
 
-  document.getElementById('loadingOverlay').classList.remove('hidden');
+  showLoading('Generating hook options…');
 
-  const systemPrompt = `You are an expert broadcast journalism script editor specialising in short social video content.
-Analyse the provided script and return ONLY valid JSON with this exact structure:
-{
-  "hooks": [
-    {"text": "hook option 1"},
-    {"text": "hook option 2"},
-    {"text": "hook option 3"}
-  ],
-  "warnings": [
-    {
-      "original": "exact verbatim passage from the script",
-      "reason": "brief reason (e.g. too dense, jargon-heavy, too long)",
-      "rewrite": "improved version of this passage"
-    }
-  ]
-}
-
-Rules:
-- hooks: 3 alternative opening lines that immediately grab a social media audience
-- warnings: flag 1–4 passages that risk losing viewer attention; "original" must be an exact verbatim substring of the script
-- Return ONLY the JSON object, no markdown, no explanation`;
-
-  const userPrompt = `SCRIPT:\n${scriptText}`;
+  const systemPrompt = `You are an expert social media scriptwriter. Given source material, generate 3 compelling hook options that would stop someone scrolling. Each hook should be 1-2 sentences, emotionally resonant, and create curiosity. Return ONLY valid JSON: {"hooks":[{"text":"hook text"}]}. No markdown, no explanation.`;
+  const userPrompt = `SOURCE MATERIAL:\n${srcText}`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': STATE.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1500,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      const msg = errData?.error?.message || `API error ${response.status}`;
-      throw new Error(msg);
-    }
-
-    const data = await response.json();
-    const rawText = data.content?.[0]?.text || '';
-
-    // Strip markdown code fences if present
-    const jsonText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-    const parsed = JSON.parse(jsonText);
-
-    document.getElementById('loadingOverlay').classList.add('hidden');
-    applyAnalysisResults(scriptText, parsed);
-
-  } catch (err) {
-    document.getElementById('loadingOverlay').classList.add('hidden');
-    let msg = err.message || 'Analysis failed.';
-
-    // Classify common failure modes
-    if (err instanceof TypeError && msg.toLowerCase().includes('fetch')) {
-      msg = 'Network error — check your internet connection and try again.';
-    } else if (msg.includes('401') || msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('auth')) {
-      msg = 'Invalid API key. Tap "Update API Key" to fix it.';
-    } else if (msg.includes('529') || msg.includes('overloaded')) {
-      msg = 'Anthropic API is busy right now. Please try again in a moment.';
-    } else if (msg.includes('JSON') || msg.includes('parse')) {
-      msg = 'AI returned an unexpected response. Please try again.';
-    }
-
-    showError(msg);
-    console.error('[Teleprompter] Analysis error:', err);
+    const parsed = await callClaude(systemPrompt, userPrompt, 600);
+    hideLoading();
+    script.hookOptions = parsed.hooks || [];
+    saveScripts();
+    renderHookOptions(script);
+  } catch(err) {
+    hideLoading();
+    showError(classifyError(err));
   }
 }
 
-/* ============================================================
-   APPLY ANALYSIS RESULTS — Phase 1 UI
-   ============================================================ */
-function applyAnalysisResults(scriptText, parsed) {
-  STATE.analysed = true;
-
-  // ── Hooks ──
-  const hooksList = document.getElementById('hooksList');
-  hooksList.innerHTML = '';
-  (parsed.hooks || []).forEach((h, i) => {
+function renderHookOptions(script) {
+  const card = document.getElementById('hookOptionsCard');
+  const list = document.getElementById('hookOptionsList');
+  if (!script.hookOptions || script.hookOptions.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  list.innerHTML = '';
+  script.hookOptions.forEach((h, i) => {
     const div = document.createElement('div');
-    div.className = 'hook-item';
+    div.className = 'hook-option-item';
     div.innerHTML = `
-      <span class="hook-num">Hook ${i + 1}</span>
-      <span class="hook-text">${escHtml(h.text)}</span>
-      <button class="hook-use" data-hook="${escAttr(h.text)}">Use this</button>
+      <div class="hook-option-text">${escHtml(h.text)}</div>
+      <button class="hook-option-use">Use this</button>
     `;
-    div.querySelector('.hook-use').addEventListener('click', () => useHook(h.text));
-    hooksList.appendChild(div);
-  });
-  document.getElementById('hooksCard').style.display = 'block';
-
-  // ── Segments ──
-  const warnings = parsed.warnings || [];
-  const segments = buildSegments(scriptText, warnings);
-  STATE.segments = segments;
-
-  renderSegments(segments);
-
-  // Hide plain textarea
-  document.getElementById('plainScript').style.display = 'none';
-}
-
-/* Split script into segments based on warning passages */
-function buildSegments(script, warnings) {
-  let segments = [];
-  let remaining = script;
-  let cursor = 0;
-
-  // Sort warnings by position in script
-  const positioned = warnings
-    .map(w => ({ ...w, idx: script.indexOf(w.original) }))
-    .filter(w => w.idx !== -1)
-    .sort((a, b) => a.idx - b.idx);
-
-  for (const w of positioned) {
-    const before = script.slice(cursor, w.idx);
-    if (before) {
-      segments.push({ text: before, flagged: false });
-    }
-    segments.push({ text: w.original, flagged: true, reason: w.reason, rewrite: w.rewrite });
-    cursor = w.idx + w.original.length;
-  }
-
-  const tail = script.slice(cursor);
-  if (tail) segments.push({ text: tail, flagged: false });
-
-  // Fallback: no warnings matched
-  if (segments.length === 0) {
-    segments.push({ text: script, flagged: false });
-  }
-
-  return segments;
-}
-
-function renderSegments(segments) {
-  const container = document.getElementById('segmentsContainer');
-  container.innerHTML = '';
-
-  segments.forEach((seg, idx) => {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'seg';
-    wrapper.dataset.idx = idx;
-
-    // Editable text block
-    const textEl = document.createElement('div');
-    textEl.className = 'seg-text' + (seg.flagged ? ' flagged' : '');
-    textEl.contentEditable = 'true';
-    textEl.textContent = seg.text;
-    textEl.addEventListener('input', () => {
-      STATE.segments[idx].text = textEl.textContent;
+    div.querySelector('.hook-option-use').addEventListener('click', () => {
+      useHookOption(h.text, script);
     });
-    wrapper.appendChild(textEl);
-
-    if (seg.flagged) {
-      // Warning label
-      const warnEl = document.createElement('div');
-      warnEl.className = 'warning-label';
-      warnEl.innerHTML = `⚠️ ${escHtml(seg.reason)}`;
-      wrapper.appendChild(warnEl);
-
-      // Rewrite card
-      const card = document.createElement('div');
-      card.className = 'rewrite-card';
-      card.innerHTML = `
-        <span class="rewrite-label">Suggested rewrite</span>
-        <span class="rewrite-text">${escHtml(seg.rewrite)}</span>
-        <button class="rewrite-accept">Accept ✓</button>
-      `;
-      card.querySelector('.rewrite-accept').addEventListener('click', () => {
-        textEl.textContent = seg.rewrite;
-        STATE.segments[idx].text = seg.rewrite;
-        STATE.segments[idx].flagged = false;
-        textEl.classList.remove('flagged');
-        warnEl.remove();
-        card.remove();
-      });
-      wrapper.appendChild(card);
-    }
-
-    container.appendChild(wrapper);
+    list.appendChild(div);
   });
 }
 
-function useHook(hookText) {
-  if (STATE.analysed && STATE.segments.length > 0) {
-    // Replace the first segment text up to first sentence end
-    const firstSeg = document.querySelector('.seg-text');
-    if (firstSeg) {
-      // Find end of first sentence in first segment
-      const orig = STATE.segments[0].text;
-      const sentenceEnd = orig.search(/[.!?]\s/);
-      const rest = sentenceEnd !== -1 ? orig.slice(sentenceEnd + 1) : '';
-      const newText = hookText + (rest ? '\n' + rest.trimStart() : '');
-      firstSeg.textContent = newText;
-      STATE.segments[0].text = newText;
-    }
-  } else {
-    // Plain textarea mode
-    const ta = document.getElementById('plainScript');
-    const current = ta.value;
-    const sentenceEnd = current.search(/[.!?]\s/);
-    const rest = sentenceEnd !== -1 ? current.slice(sentenceEnd + 1) : '';
-    ta.value = hookText + (rest ? '\n' + rest.trimStart() : '');
+function useHookOption(text, script) {
+  const hookBeat = script.beats.find(b => b.type === 'hook');
+  if (hookBeat) {
+    hookBeat.content = text;
+    saveScripts();
+    renderBeats(script);
   }
 }
 
 /* ============================================================
-   GET SCRIPT TEXT — merges segments or reads textarea
+   REFINE WITH AI
    ============================================================ */
-function getScriptText() {
-  if (STATE.analysed && STATE.segments.length > 0) {
-    // Re-read live DOM in case user typed
-    const els = document.querySelectorAll('.seg-text');
-    if (els.length > 0) {
-      return Array.from(els).map(el => el.textContent).join('');
-    }
-    return STATE.segments.map(s => s.text).join('');
+async function refineWithAI() {
+  const script = getCurrentScript();
+  if (!script) return;
+
+  const hasContent = script.beats.some(b => b.content.trim());
+  if (!hasContent) {
+    showError('Write some content in your beats first.', false);
+    return;
   }
-  return document.getElementById('plainScript').value;
+  if (!STATE.apiKey) {
+    showError('No API key — tap the gear to add one.');
+    return;
+  }
+
+  showLoading('Refining your script…');
+
+  const beatsText = script.beats.map((b, i) =>
+    `[${i}] ${b.label.toUpperCase()}: ${b.content}`
+  ).join('\n\n');
+
+  const systemPrompt = `You are an expert social media scriptwriter. Analyse these beats and return suggestions for improvement. Focus on clarity, pacing, and engagement. Return ONLY valid JSON:
+{"suggestions":[{"beatIndex":0,"type":"wording|format|pacing","issue":"brief issue description","rewrite":"improved version"}]}
+Only include beats that need improvement. No markdown, no explanation.`;
+  const userPrompt = `SCRIPT BEATS:\n${beatsText}`;
+
+  try {
+    const parsed = await callClaude(systemPrompt, userPrompt, 1500);
+    hideLoading();
+
+    const suggestions = parsed.suggestions || [];
+    // Clear old suggestions
+    script.beats.forEach(b => { b.suggestions = []; });
+    suggestions.forEach(sug => {
+      const beat = script.beats[sug.beatIndex];
+      if (beat) {
+        beat.suggestions.push({
+          type: sug.type || '',
+          issue: sug.issue || '',
+          rewrite: sug.rewrite || '',
+        });
+      }
+    });
+    saveScripts();
+    renderBeats(script);
+
+    if (suggestions.length === 0) {
+      showError('Your script looks great — no suggestions!', false);
+    }
+  } catch(err) {
+    hideLoading();
+    showError(classifyError(err));
+  }
+}
+
+/* ============================================================
+   GENERATE BULLETS
+   ============================================================ */
+async function generateBullets(script) {
+  const beatsText = script.beats.map((b, i) =>
+    `[${i}] ${b.label.toUpperCase()}: ${b.content || '(empty)'}`
+  ).join('\n\n');
+
+  const systemPrompt = `You are an expert teleprompter coach. Condense each beat into a short speaking cue (1-2 sentences max) that a presenter can glance at to remember what to say. Keep the natural voice. Return ONLY valid JSON:
+{"bullets":[{"beatIndex":0,"bullet":"short cue text"}]}
+Include all beats. No markdown, no explanation.`;
+  const userPrompt = `SCRIPT BEATS:\n${beatsText}`;
+
+  const parsed = await callClaude(systemPrompt, userPrompt, 800);
+  const bullets = parsed.bullets || [];
+  bullets.forEach(item => {
+    const beat = script.beats[item.beatIndex];
+    if (beat) beat.bullet = item.bullet;
+  });
+  saveScripts();
 }
 
 /* ============================================================
    PHASE 2 — START PROMPTER
    ============================================================ */
 async function startPrompter() {
-  const text = getScriptText().trim();
-  if (!text) {
-    showError('Your script is empty. Please write something first.');
+  saveCurrentScriptFromUI();
+  const script = getCurrentScript();
+  if (!script) return;
+
+  const hasContent = script.beats.some(b => b.content.trim());
+  if (!hasContent) {
+    showError('Write some content in your beats first.', false);
     return;
   }
 
-  STATE.script = text;
+  STATE.playbackMode = script.playbackMode || 'teleprompter';
   STATE.scrollPos = 0;
   STATE.isPaused = false;
   STATE.isScrolling = false;
+  STATE.bulletIndex = 0;
 
-  // Set prompter text
-  document.getElementById('prompterText').textContent = text;
-  applyFontSize();
+  if (STATE.playbackMode === 'bullets') {
+    // Check if bullets exist; if not, generate them
+    const hasBullets = script.beats.some(b => b.bullet && b.bullet.trim());
+    if (!hasBullets) {
+      if (!STATE.apiKey) {
+        showError('No API key — bullets need AI. Add your key or use Word for word mode.');
+        return;
+      }
+      showLoading('Generating bullet cues…');
+      try {
+        await generateBullets(script);
+        hideLoading();
+      } catch(err) {
+        hideLoading();
+        showError(classifyError(err));
+        return;
+      }
+    }
+    setupBulletMode(script);
+  } else {
+    // Word-for-word: assemble full text from beats
+    const fullText = script.beats.map(b => b.content).filter(Boolean).join('\n\n');
+    STATE.script = fullText;
+    document.getElementById('prompterText').textContent = fullText;
+    applyFontSize();
+    setupTeleprompterMode();
+  }
 
-  // Switch screens
-  document.getElementById('phase1').classList.remove('active');
-  document.getElementById('phase2').classList.add('active');
-
-  // Request camera/mic
+  showScreen('phase2');
   await requestMediaPermissions();
-
-  // Show countdown then start
   showCountdown();
 }
 
-async function requestMediaPermissions() {
-  try {
-    STATE.stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
-      audio: true,
-    });
-  } catch (e) {
-    // Recording won't work but prompter still works
-    console.warn('Media permissions denied:', e);
-  }
+function setupTeleprompterMode() {
+  document.getElementById('prompterText').style.display = 'block';
+  document.getElementById('bulletContainer').style.display = 'none';
+  document.getElementById('prompterInner').style.display = 'block';
+  document.getElementById('readingLine').style.display = 'block';
+  document.getElementById('bulletHint').classList.remove('show');
+}
+
+function setupBulletMode(script) {
+  const beats = script.beats.filter(b => b.bullet && b.bullet.trim());
+  document.getElementById('prompterText').style.display = 'none';
+  document.getElementById('prompterInner').style.display = 'none';
+  document.getElementById('readingLine').style.display = 'none';
+
+  const container = document.getElementById('bulletContainer');
+  container.style.display = 'flex';
+  container.innerHTML = '';
+
+  STATE.bulletBeats = beats;
+  STATE.bulletIndex = 0;
+
+  beats.forEach((beat, i) => {
+    const card = document.createElement('div');
+    card.className = 'bullet-card' + (i === 0 ? ' active-bullet' : '');
+    card.dataset.bulletIdx = i;
+    card.textContent = beat.bullet;
+    container.appendChild(card);
+  });
+
+  // Show hint briefly
+  const hint = document.getElementById('bulletHint');
+  hint.classList.add('show');
+  setTimeout(() => hint.classList.remove('show'), 3000);
 }
 
 /* ============================================================
@@ -1504,9 +2113,14 @@ function showCountdown() {
     if (count <= 0) {
       clearInterval(tick);
       overlay.classList.add('hidden');
-      beginScrolling();
+      if (STATE.playbackMode === 'teleprompter') {
+        beginScrolling();
+      } else {
+        // Bullet mode: just set paused=false, no auto-scroll
+        STATE.isPaused = false;
+        updatePauseOverlay();
+      }
     } else {
-      // Trigger re-animation
       num.style.animation = 'none';
       num.offsetHeight; // reflow
       num.style.animation = '';
@@ -1516,16 +2130,14 @@ function showCountdown() {
 }
 
 /* ============================================================
-   SCROLLING — Phase 2
+   SCROLLING — Teleprompter mode
    ============================================================ */
 function beginScrolling() {
   STATE.isScrolling = true;
   STATE.isPaused = false;
   STATE.lastTimestamp = null;
-
   updatePauseOverlay();
   updateProgressBar();
-
   cancelAnimationFrame(STATE.rafId);
   STATE.rafId = requestAnimationFrame(scrollStep);
 }
@@ -1548,6 +2160,7 @@ function scrollStep(timestamp) {
     if (STATE.scrollPos >= maxScroll) {
       STATE.scrollPos = maxScroll;
       STATE.isPaused = true;
+      updatePauseOverlay();
     }
 
     inner.style.transform = `translateY(-${STATE.scrollPos}px)`;
@@ -1566,11 +2179,37 @@ function updateProgressBar() {
 }
 
 function updatePauseOverlay() {
-  const po = document.getElementById('pauseOverlay');
-  if (STATE.isPaused) {
-    po.classList.add('show');
-  } else {
-    po.classList.remove('show');
+  document.getElementById('pauseOverlay').classList.toggle('show', !!STATE.isPaused);
+}
+
+/* ============================================================
+   BULLET NAVIGATION
+   ============================================================ */
+function bulletAdvance() {
+  const beats = STATE.bulletBeats || [];
+  if (STATE.bulletIndex < beats.length - 1) {
+    setBulletIndex(STATE.bulletIndex + 1);
+  }
+}
+
+function bulletBack() {
+  if (STATE.bulletIndex > 0) {
+    setBulletIndex(STATE.bulletIndex - 1);
+  }
+}
+
+function setBulletIndex(idx) {
+  STATE.bulletIndex = idx;
+  const cards = document.querySelectorAll('.bullet-card');
+  cards.forEach((card, i) => {
+    card.classList.remove('active-bullet', 'past-bullet');
+    if (i < idx) card.classList.add('past-bullet');
+    else if (i === idx) card.classList.add('active-bullet');
+  });
+  // Scroll to keep active card visible
+  const active = document.querySelector('.bullet-card.active-bullet');
+  if (active) {
+    active.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 
@@ -1580,7 +2219,6 @@ function updatePauseOverlay() {
 function setupPrompterGestures() {
   const outer = document.getElementById('prompterOuter');
 
-  /* ── Tap to pause/resume ── */
   let tapTimer = null;
   let lastTap = 0;
   let dragStartY = null;
@@ -1594,10 +2232,10 @@ function setupPrompterGestures() {
   }, { passive: true });
 
   outer.addEventListener('touchmove', (e) => {
+    if (STATE.playbackMode === 'bullets') return;
     if (!STATE.isPaused) return;
     const dy = dragStartY - e.touches[0].clientY;
     if (Math.abs(dy) > 8) isDragging = true;
-
     if (isDragging) {
       const inner = document.getElementById('prompterInner');
       const outerEl = document.getElementById('prompterOuter');
@@ -1613,18 +2251,24 @@ function setupPrompterGestures() {
 
     const now = Date.now();
     if (now - lastTap < 300) {
-      // Double-tap — open inline editor
+      // Double-tap
       clearTimeout(tapTimer);
       lastTap = 0;
-      if (STATE.isPaused) openInlineEdit();
+      if (STATE.playbackMode === 'bullets') {
+        bulletBack();
+      } else {
+        if (STATE.isPaused) openInlineEdit();
+      }
     } else {
       lastTap = now;
       tapTimer = setTimeout(() => {
-        // Single tap — toggle pause
-        STATE.isPaused = !STATE.isPaused;
-        updatePauseOverlay();
-        if (!STATE.isPaused) {
-          STATE.lastTimestamp = null;
+        // Single tap
+        if (STATE.playbackMode === 'bullets') {
+          bulletAdvance();
+        } else {
+          STATE.isPaused = !STATE.isPaused;
+          updatePauseOverlay();
+          if (!STATE.isPaused) STATE.lastTimestamp = null;
         }
       }, 280);
     }
@@ -1632,10 +2276,10 @@ function setupPrompterGestures() {
 }
 
 /* ============================================================
-   INLINE EDIT (Phase 2 double-tap)
+   INLINE EDIT (Phase 2 double-tap, teleprompter mode only)
    ============================================================ */
 function openInlineEdit() {
-  document.getElementById('inlineEditArea').value = STATE.script;
+  document.getElementById('inlineEditArea').value = STATE.script || '';
   document.getElementById('inlineEditOverlay').classList.remove('hidden');
   setTimeout(() => document.getElementById('inlineEditArea').focus(), 100);
 }
@@ -1645,7 +2289,6 @@ function saveInlineEdit() {
   STATE.script = newText;
   document.getElementById('prompterText').textContent = newText;
   document.getElementById('inlineEditOverlay').classList.add('hidden');
-  // Reset scroll
   STATE.scrollPos = 0;
   document.getElementById('prompterInner').style.transform = 'translateY(0)';
   updateProgressBar();
@@ -1660,15 +2303,12 @@ function cancelInlineEdit() {
    ============================================================ */
 function buildSpeedSlider() {
   const slider = document.getElementById('speedSlider');
-  // Clear existing steps
   slider.querySelectorAll('.speed-step').forEach(el => el.remove());
 
-  // Build from fast (top) to slow (bottom)
   for (let i = 5; i >= 1; i--) {
     const step = document.createElement('div');
     step.className = 'speed-step' + (i === STATE.scrollSpeed ? ' selected' : '');
     step.dataset.speed = i;
-    // Visual: more lines = faster
     const bar = document.createElement('span');
     step.appendChild(bar);
     step.addEventListener('click', () => setSpeed(i));
@@ -1693,6 +2333,10 @@ function adjustFont(delta) {
 
 function applyFontSize() {
   document.getElementById('prompterText').style.fontSize = STATE.fontSize + 'px';
+  // Also apply to bullet cards
+  document.querySelectorAll('.bullet-card').forEach(card => {
+    card.style.fontSize = Math.max(16, STATE.fontSize - 8) + 'px';
+  });
 }
 
 /* ============================================================
@@ -1708,42 +2352,44 @@ async function toggleRecording() {
 
 function startRecording() {
   if (!STATE.stream) {
-    showError('Camera permission not granted. Recording unavailable.');
+    showError('Camera permission not granted. Recording unavailable.', false);
     return;
   }
 
   STATE.recordedChunks = [];
-
-  // Pick best available codec
   const mimeType = getSupportedMimeType();
   const options = mimeType ? { mimeType } : {};
 
   try {
     STATE.mediaRecorder = new MediaRecorder(STATE.stream, options);
-  } catch (e) {
+  } catch(e) {
     STATE.mediaRecorder = new MediaRecorder(STATE.stream);
   }
 
   STATE.mediaRecorder.ondataavailable = (e) => {
     if (e.data && e.data.size > 0) STATE.recordedChunks.push(e.data);
   };
-
   STATE.mediaRecorder.onstop = handleRecordingStop;
-
-  STATE.mediaRecorder.start(1000); // collect every 1s
+  STATE.mediaRecorder.start(1000);
   STATE.isRecording = true;
 
-  // UI
   document.getElementById('recordBtn').classList.add('recording');
   document.getElementById('recIndicator').classList.add('active');
   document.getElementById('deleteClipBtn').style.display = 'none';
 
-  // Show Files tooltip first time
+  // Start timer
+  STATE.timerSeconds = 0;
+  updateTimerDisplay();
+  STATE.timerInterval = setInterval(() => {
+    STATE.timerSeconds++;
+    updateTimerDisplay();
+  }, 1000);
+
   if (!STATE.tooltipShown) {
     const tip = document.getElementById('filesTooltip');
     tip.classList.add('show');
     STATE.tooltipShown = true;
-    try { localStorage.setItem('tp_tooltip_shown', '1'); } catch(e) {}
+    try { localStorage.setItem('sp2_tooltip_shown', '1'); } catch(e) {}
     setTimeout(() => tip.classList.remove('show'), 5000);
   }
 }
@@ -1756,6 +2402,17 @@ function stopRecording() {
 
   document.getElementById('recordBtn').classList.remove('recording');
   document.getElementById('recIndicator').classList.remove('active');
+
+  // Freeze timer
+  clearInterval(STATE.timerInterval);
+  STATE.timerInterval = null;
+}
+
+function updateTimerDisplay() {
+  const s = STATE.timerSeconds;
+  const mm = Math.floor(s / 60).toString().padStart(2, '0');
+  const ss = (s % 60).toString().padStart(2, '0');
+  document.getElementById('recTimer').textContent = mm + ':' + ss;
 }
 
 function handleRecordingStop() {
@@ -1764,13 +2421,11 @@ function handleRecordingStop() {
   const mimeType = STATE.mediaRecorder.mimeType || 'video/mp4';
   const blob = new Blob(STATE.recordedChunks, { type: mimeType });
 
-  // Revoke previous
   if (STATE.lastBlobUrl) URL.revokeObjectURL(STATE.lastBlobUrl);
   STATE.lastBlobUrl = URL.createObjectURL(blob);
 
-  // Trigger download
   const ext = mimeType.includes('webm') ? 'webm' : 'mp4';
-  const filename = `teleprompter-clip-${Date.now()}.${ext}`;
+  const filename = `social-prompter-clip-${Date.now()}.${ext}`;
   const a = document.createElement('a');
   a.href = STATE.lastBlobUrl;
   a.download = filename;
@@ -1778,7 +2433,6 @@ function handleRecordingStop() {
   a.click();
   document.body.removeChild(a);
 
-  // Show delete button
   document.getElementById('deleteClipBtn').style.display = 'block';
 }
 
@@ -1790,7 +2444,6 @@ function deleteLastClip() {
   STATE.recordedChunks = [];
   document.getElementById('deleteClipBtn').style.display = 'none';
 
-  // Flash confirm
   const dc = document.getElementById('deleteConfirm');
   dc.classList.add('show');
   setTimeout(() => dc.classList.remove('show'), 2000);
@@ -1811,35 +2464,122 @@ function getSupportedMimeType() {
 }
 
 /* ============================================================
+   MEDIA PERMISSIONS
+   ============================================================ */
+async function requestMediaPermissions() {
+  try {
+    STATE.stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: true,
+    });
+  } catch(e) {
+    console.warn('Media permissions denied:', e);
+  }
+}
+
+/* ============================================================
    NAVIGATION
    ============================================================ */
 function goBackToPhase1() {
-  // Stop scrolling
   cancelAnimationFrame(STATE.rafId);
   STATE.isScrolling = false;
   STATE.isPaused = false;
 
-  // Stop recording if active
   if (STATE.isRecording) stopRecording();
 
-  // Stop stream (free camera)
+  clearInterval(STATE.timerInterval);
+  STATE.timerInterval = null;
+
   if (STATE.stream) {
     STATE.stream.getTracks().forEach(t => t.stop());
     STATE.stream = null;
   }
 
   document.getElementById('phase2').classList.remove('active');
-  document.getElementById('phase1').classList.add('active');
+  const script = getCurrentScript();
+  if (script) {
+    showPhase1(script);
+  } else {
+    showHome();
+  }
+}
+
+/* ============================================================
+   SCREEN SWITCHER
+   ============================================================ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ============================================================
+   CLAUDE API HELPER
+   ============================================================ */
+async function callClaude(systemPrompt, userPrompt, maxTokens) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': STATE.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: maxTokens || 1000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    }),
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData?.error?.message || `API error ${response.status}`);
+  }
+
+  const data = await response.json();
+  const rawText = data.content?.[0]?.text || '';
+  const jsonText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+  return JSON.parse(jsonText);
+}
+
+function classifyError(err) {
+  let msg = (err && err.message) ? err.message : 'Unknown error.';
+  if (err instanceof TypeError && msg.toLowerCase().includes('fetch')) {
+    return 'Network error — check your internet connection.';
+  }
+  if (msg.includes('401') || msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('auth')) {
+    return 'Invalid API key. Tap "Update API Key" to fix it.';
+  }
+  if (msg.includes('529') || msg.includes('overloaded')) {
+    return 'Anthropic API is busy. Please try again in a moment.';
+  }
+  if (msg.includes('JSON') || msg.includes('parse') || msg.includes('SyntaxError')) {
+    return 'AI returned an unexpected response. Please try again.';
+  }
+  return msg;
+}
+
+/* ============================================================
+   LOADING OVERLAY
+   ============================================================ */
+function showLoading(msg) {
+  document.getElementById('loadingMsg').textContent = msg || 'Working…';
+  document.getElementById('loadingOverlay').classList.remove('hidden');
+}
+
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.add('hidden');
 }
 
 /* ============================================================
    ERROR TOAST
    ============================================================ */
-function showError(msg, showSettingsBtn = true) {
+function showError(msg, showSettingsBtn) {
   const toast = document.getElementById('errorToast');
   const btn = toast.querySelector('.err-action');
   document.getElementById('errorMsg').textContent = msg;
-  btn.style.display = showSettingsBtn ? 'inline-block' : 'none';
+  btn.style.display = (showSettingsBtn === false) ? 'none' : 'inline-block';
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 5000);
 }
@@ -1852,7 +2592,8 @@ function hideError() {
    UTILITY
    ============================================================ */
 function escHtml(str) {
-  return str
+  if (!str) return '';
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -1860,7 +2601,8 @@ function escHtml(str) {
 }
 
 function escAttr(str) {
-  return str.replace(/"/g, '&quot;');
+  if (!str) return '';
+  return String(str).replace(/"/g, '&quot;');
 }
 </script>
 </body>
