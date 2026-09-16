@@ -306,6 +306,19 @@ html, body {
   min-height: 52px;
   gap: 8px;
 }
+#durationBar {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.3px;
+  text-align: right;
+}
+#durationBar span { color: var(--accent); }
+
 .p1-header-left {
   display: flex;
   align-items: center;
@@ -559,7 +572,7 @@ html, body {
   -webkit-appearance: none;
   min-height: 90px;
 }
-.beat-textarea::placeholder { color: var(--text-dim); }
+.beat-textarea::placeholder { color: rgba(255,255,255,0.55); }
 
 /* AI suggestion card inside a beat */
 .beat-suggestion {
@@ -1354,6 +1367,8 @@ html, body {
     </div>
   </div>
 
+  <div id="durationBar">Script length: <span>~0s</span></div>
+
   <div id="beatWrapper">
     <!-- Source material -->
     <div class="source-section">
@@ -1533,11 +1548,11 @@ html, body {
    BEAT TEMPLATES
    ============================================================ */
 const BEAT_TEMPLATES = [
-  { type: 'hook',       label: 'Hook',       desc: 'The feeling that stops them. Think visual hook too — can start on best pix, or you doing something (even mundane/intriguing)' },
-  { type: 'superhook',  label: 'Why Should They Listen To You?', desc: 'Introduce yourself, or your work in this area — e.g. I\'ve been covering this story for x years / I was there when X happened / I\'ve been speaking to people inside X' },
-  { type: 'openloop',   label: 'Open Loop',  desc: 'Commit them to the end' },
+  { type: 'hook',       label: 'Hook — 3-7 seconds', desc: 'The feeling that stops them. Think visual hook too — can start on best pix, or you doing something (even mundane/intriguing)' },
+  { type: 'superhook',  label: 'Why They Should Listen', desc: '10 seconds max. Introduce yourself, or your work in this area — e.g. I\'ve been covering this story for x years / I was there when X happened / I\'ve been speaking to people inside X' },
+  { type: 'openloop',   label: 'Open Loop',  desc: 'Promise your audience a revelation without revealing it yet. Tell them what\'s coming — but make them wait. This creates the tension that stops viewers scrolling away before you\'ve delivered.' },
   { type: 'body',       label: 'Body',       desc: 'Deliver real value' },
-  { type: 'payoff',     label: 'Payoff / CTA', desc: 'Close the loop, better than promised' },
+  { type: 'payoff',     label: 'Payoff and Call-to-Action — 10 seconds max.', desc: 'Close the loop, better than promised' },
 ];
 
 const REHOOK_TEMPLATE = { type: 'rehook', label: 'Rehook', desc: 'Re-engage and tease what\'s next' };
@@ -1588,6 +1603,28 @@ const SPEED_MAP = [18, 36, 60, 90, 130];
    ============================================================ */
 function saveScripts() {
   try { localStorage.setItem('sp2_scripts', JSON.stringify(STATE.scripts)); } catch(e) {}
+}
+
+function updateDurationCounter() {
+  const bar = document.getElementById('durationBar');
+  if (!bar) return;
+  const textareas = document.querySelectorAll('#beatsContainer .beat-textarea');
+  let words = 0;
+  textareas.forEach(ta => {
+    words += ta.value.trim().split(/\s+/).filter(Boolean).length;
+  });
+  const secs = Math.round(words / 3);
+  let label;
+  if (secs === 0) {
+    label = '~0s';
+  } else if (secs >= 60) {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    label = `~${m}m${s > 0 ? ' ' + s + 's' : ''}`;
+  } else {
+    label = `~${secs}s`;
+  }
+  bar.innerHTML = `Script length: <span>${label}</span>`;
 }
 
 function loadScripts() {
@@ -1910,6 +1947,8 @@ function renderBeats(script) {
 
   // Show/hide add body button — always visible
   document.getElementById('addBodyBtn').style.display = 'flex';
+
+  updateDurationCounter();
 }
 
 function relabelBeats(beats) {
@@ -1950,6 +1989,7 @@ function buildBeatCard(script, beat, idx) {
   ta.addEventListener('input', () => {
     beat.content = ta.value;
     saveScripts();
+    updateDurationCounter();
   });
 
   // Delete button
