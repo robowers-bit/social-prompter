@@ -691,6 +691,10 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 .beat-sug-dismiss:active { opacity: 0.75; }
+.beat-suggestion-parts { display: flex; flex-direction: column; gap: 6px; }
+.beat-suggestion-part { border-radius: 6px; background: rgba(255,255,255,0.05); padding: 8px 10px; }
+.beat-suggestion-part-label { font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+.beat-suggestion-part-content { font-size: 13px; line-height: 1.5; color: var(--text); }
 
 /* Add body button */
 #addBodyBtn {
@@ -1681,7 +1685,7 @@ let STATE = {
 };
 
 /* Speed → pixels per second */
-const SPEED_MAP = [18, 36, 60, 90, 130];
+const SPEED_MAP = [6, 14, 30, 58, 130];
 
 /* ============================================================
    PERSISTENCE HELPERS
@@ -2214,29 +2218,65 @@ function countBeatsOfType(beats, type) {
 function buildSuggestionEl(beat, sug, script) {
   const div = document.createElement('div');
   div.className = 'beat-suggestion';
-  div.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span class="beat-suggestion-issue">${escHtml(sug.issue || '')}</span>
-      <span class="beat-suggestion-type">${escHtml(sug.type || '')}</span>
-    </div>
-    <div class="beat-suggestion-rewrite">${escHtml(sug.rewrite || '')}</div>
-    <div class="beat-suggestion-actions">
-      <button class="beat-sug-accept">Accept</button>
-      <button class="beat-sug-dismiss">Dismiss</button>
-    </div>
-  `;
-  div.querySelector('.beat-sug-accept').addEventListener('click', () => {
-    beat.content = sug.rewrite;
-    beat.suggestions = beat.suggestions.filter(s => s !== sug);
-    saveScripts();
-    const script2 = getCurrentScript();
-    if (script2) renderBeats(script2);
+  const isSplit = sug.type === 'split' && Array.isArray(sug.parts) && sug.parts.length > 1;
+
+  // Header row
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:center;gap:8px;';
+  header.innerHTML = `<span class="beat-suggestion-issue">${escHtml(sug.issue || '')}</span><span class="beat-suggestion-type">${escHtml(sug.type || '')}</span>`;
+  div.appendChild(header);
+
+  if (isSplit) {
+    const partsEl = document.createElement('div');
+    partsEl.className = 'beat-suggestion-parts';
+    sug.parts.forEach(part => {
+      const partEl = document.createElement('div');
+      partEl.className = 'beat-suggestion-part';
+      partEl.innerHTML = `<div class="beat-suggestion-part-label">${escHtml(part.type)}</div><div class="beat-suggestion-part-content">${escHtml(part.content)}</div>`;
+      partsEl.appendChild(partEl);
+    });
+    div.appendChild(partsEl);
+  } else {
+    const rewriteEl = document.createElement('div');
+    rewriteEl.className = 'beat-suggestion-rewrite';
+    rewriteEl.textContent = sug.rewrite || '';
+    div.appendChild(rewriteEl);
+  }
+
+  // Actions
+  const actionsEl = document.createElement('div');
+  actionsEl.className = 'beat-suggestion-actions';
+  actionsEl.innerHTML = `<button class="beat-sug-accept">${isSplit ? 'Apply split' : 'Accept'}</button><button class="beat-sug-dismiss">Dismiss</button>`;
+  div.appendChild(actionsEl);
+
+  actionsEl.querySelector('.beat-sug-accept').addEventListener('click', () => {
+    if (isSplit) {
+      const beatIdx = script.beats.findIndex(b => b.id === beat.id);
+      if (beatIdx !== -1) {
+        const ts = Date.now();
+        const newBeats = sug.parts.map((part, i) => {
+          const tmpl = part.type === 'rehook' ? REHOOK_TEMPLATE : BODY_TEMPLATE;
+          return { id: `b${ts}${i}`, type: part.type, label: tmpl.label, desc: tmpl.desc, content: part.content, bullet: '', suggestions: [] };
+        });
+        script.beats.splice(beatIdx, 1, ...newBeats);
+        saveScripts();
+        renderBeats(script);
+      }
+    } else {
+      beat.content = sug.rewrite;
+      beat.suggestions = beat.suggestions.filter(s => s !== sug);
+      saveScripts();
+      const script2 = getCurrentScript();
+      if (script2) renderBeats(script2);
+    }
   });
-  div.querySelector('.beat-sug-dismiss').addEventListener('click', () => {
+
+  actionsEl.querySelector('.beat-sug-dismiss').addEventListener('click', () => {
     beat.suggestions = beat.suggestions.filter(s => s !== sug);
     saveScripts();
     div.remove();
   });
+
   return div;
 }
 
@@ -2412,20 +2452,28 @@ async function refineWithAI() {
     `[${i}] ${b.label.toUpperCase()}: ${b.content}`
   ).join('\n\n');
 
-  const systemPrompt = `You are an expert social media scriptwriter coaching journalists who are new to short-form social video. Analyse these script beats and return improvement suggestions.
+  const systemPrompt = `You are an expert social media scriptwriter coaching journalists who are new to short-form social video. Read the COMPLETE script as one piece — do not analyse each beat in isolation.
 
-PRIORITY — check this first before anything else:
-- Any Body beat longer than ~50 words is almost certainly too long for social video. Flag it with type "split" and explain that it should be broken into two or more shorter Body beats, each separated by a Rehook beat. A Rehook re-engages the viewer with a tease like "But here's the part nobody's talking about…" or "And it gets more interesting…". Reporters new to social often write one long body block — splitting it with rehooks is the single most important structural fix. In your rewrite, show how the body could be split and what a Rehook between them might say.
-- If a Body beat is 30-50 words and reads as two separate points, still suggest splitting it.
+STEP 1 — WHOLE-SCRIPT CROSS-BEAT CHECK:
+- Read all beats together. Identify any fact, idea, or phrase that appears in more than one beat — even across different beat types. Flag the repeated beat(s) with type "repetition", name which beat index is the duplicate, and say which version to keep.
+- Check every Rehook: a Rehook must tease what's coming WITHOUT giving it away. If a Rehook previews the next Body beat too explicitly or uses the same language, flag it with type "structure" and suggest a version that creates tension without revealing the next point.
+- Check if the Open Loop promise is actually paid off in the Payoff — flag if not.
 
-THEN check:
-- Wording: tighten phrasing, stronger verbs, cut filler
-- Pacing: beats that are too short to land properly
-- Missing Rehook: if there are two or more Body beats with no Rehook between them, flag it
+STEP 2 — BODY BEAT LENGTH (most common reporter mistake):
+- Any Body beat over ~50 words is too long. Flag with type "split" and provide a "parts" array showing the split. The Rehook in parts must NOT preview the second body — it should create anticipation only (e.g. "But here's where it gets complicated…" not "Next I'll explain X").
+- If a Body beat is 30-50 words but clearly covers two separate points, still suggest splitting it.
+- Two or more Body beats with no Rehook between them: flag with type "structure".
 
-Return ONLY valid JSON:
-{"suggestions":[{"beatIndex":0,"type":"split|wording|pacing|structure","issue":"brief issue description","rewrite":"improved or restructured version"}]}
-Only include beats that need improvement. No markdown, no explanation.`;
+STEP 3 — PER-BEAT POLISH:
+- Wording: tighten phrasing, stronger verbs, cut filler words
+- Pacing: beats too short to land (under 5 words)
+
+Return ONLY valid JSON. For split suggestions use this schema:
+{"suggestions":[
+  {"beatIndex":2,"type":"split","issue":"80 words — split into two bodies with rehook","rewrite":"Brief one-line summary of the split","parts":[{"type":"body","content":"First half text"},{"type":"rehook","content":"Tease only, no reveal"},{"type":"body","content":"Second half text"}]},
+  {"beatIndex":0,"type":"wording","issue":"hook is too long","rewrite":"Tighter hook version"}
+]}
+For non-split suggestions omit the parts field. Only include beats that need improvement. No markdown, no explanation.`;
   const userPrompt = `SCRIPT BEATS:\n${beatsText}`;
 
   try {
@@ -2442,6 +2490,7 @@ Only include beats that need improvement. No markdown, no explanation.`;
           type: sug.type || '',
           issue: sug.issue || '',
           rewrite: sug.rewrite || '',
+          parts: sug.parts || null,
         });
       }
     });
@@ -2476,15 +2525,15 @@ async function slimDownWithAI() {
     `[${i}] ${b.label.toUpperCase()}: ${b.content || '(empty)'}`
   ).join('\n\n');
 
-  const systemPrompt = `You are an expert social media editor helping journalists cut a script that is too long for social video. The script is approximately ${dur} long — the target is under 1 minute 30 seconds (about 270 words). Your job is to find cuts, not polish.
+  const systemPrompt = `You are an expert social media editor helping journalists cut a script that is too long for social video. The script is approximately ${dur} long — the target is under 1 minute 30 seconds (about 270 words). Read ALL beats together before making suggestions — look for cross-beat issues, not just per-beat problems. Your job is to find cuts, not polish.
 
 PRIORITIES in order:
-1. Whole body blocks to cut: if there are multiple body beats and removing one wouldn't break the story, flag it with type "cut" and explain why it's dispensable.
-2. Repetition: any point made more than once — flag the repeat with type "repetition" and suggest which version to keep.
-3. Verbose beats: beats that say the same thing in too many words — flag with type "trim" and give a tighter rewrite (aim to halve the word count).
+1. Cross-beat repetition: read the full script first. Is any fact, point, or phrase mentioned in more than one beat? Flag EVERY duplicate with type "repetition" — say which beat to cut and which to keep. This is the most common reason scripts run long.
+2. Whole body blocks to cut: if there are multiple body beats and removing one wouldn't break the story, flag it with type "cut" and explain why it's dispensable.
+3. Verbose beats: beats that say the same thing in too many words — flag with type "trim" and give a tighter rewrite that halves the word count.
 4. Over-long hook or superhook: if either runs past 15 words, flag with type "trim".
 
-For each suggestion, be direct: "Cut this — the story works without it" or "This repeats beat X, use the shorter version."
+Be direct: "Cut this — the story works without it" or "This repeats beat [N], keep the version in beat [N]."
 
 Return ONLY valid JSON:
 {"suggestions":[{"beatIndex":0,"type":"cut|repetition|trim","issue":"brief reason","rewrite":"tighter version, or empty string if recommending full cut"}]}
@@ -2505,6 +2554,7 @@ Only include beats that need a cut or trim. No markdown, no explanation.`;
           type: sug.type || '',
           issue: sug.issue || '',
           rewrite: sug.rewrite || '',
+          parts: sug.parts || null,
         });
       }
     });
