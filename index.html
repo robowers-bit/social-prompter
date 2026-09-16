@@ -360,7 +360,7 @@ html, body {
   overflow-y: auto;
   transition: max-height 0.25s ease;
 }
-#sourceTextarea.expanded { max-height: 280px; }
+#sourceTextarea.expanded { max-height: 560px; }
 #sourceTextarea::placeholder { color: var(--text-dim); }
 .source-expand-btn {
   background: transparent;
@@ -465,15 +465,15 @@ html, body {
 #saveBtn {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 10px 16px;
+  padding: 6px 12px;
   cursor: pointer;
-  width: 100%;
   -webkit-tap-highlight-color: transparent;
   transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
 }
 #saveBtn.saved {
   color: var(--accent2);
@@ -1336,7 +1336,10 @@ html, body {
         spellcheck="false"
       >
     </div>
-    <button class="btn-icon" onclick="openSettings()" title="Settings">&#9881;&#65039;</button>
+    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+      <button id="saveBtn" onclick="manualSave()">Save</button>
+      <button class="btn-icon" onclick="openSettings()" title="Settings">&#9881;&#65039;</button>
+    </div>
   </div>
 
   <div id="beatWrapper">
@@ -1385,7 +1388,6 @@ html, body {
       <button class="btn btn-accent" onclick="refineWithAI()">&#10024; Refine with AI</button>
       <button class="btn btn-primary" onclick="startPrompter()">Start &#8594;</button>
     </div>
-    <button id="saveBtn" onclick="manualSave()">Save</button>
   </div>
 
 </div>
@@ -1491,7 +1493,7 @@ html, body {
    ============================================================ */
 const BEAT_TEMPLATES = [
   { type: 'hook',       label: 'Hook',       desc: 'The feeling that stops them' },
-  { type: 'superhook',  label: 'Super Hook', desc: 'Earn the right to teach' },
+  { type: 'superhook',  label: 'Why Should They Listen To You?', desc: 'Introduce yourself, or your work in this area — e.g. I\'ve been covering this story for x years / I was there when X happened / I\'ve been speaking to people inside X' },
   { type: 'openloop',   label: 'Open Loop',  desc: 'Commit them to the end' },
   { type: 'body',       label: 'Body',       desc: 'Deliver real value' },
   { type: 'payoff',     label: 'Payoff / CTA', desc: 'Close the loop, better than promised' },
