@@ -3310,9 +3310,19 @@ function startRecording() {
     if (e.data && e.data.size > 0) STATE.recordedChunks.push(e.data);
   };
   STATE.mediaRecorder.onstop = handleRecordingStop;
-  // No timeslice: passing one to start() makes Safari/Chrome mux each chunk with its
-  // own timestamp base, which is what causes audio/video to drift out of sync.
-  STATE.mediaRecorder.start();
+  // iOS Safari has a known MediaRecorder bug: with no timeslice, it buffers the
+  // whole recording internally and only writes it out on stop(). On longer
+  // clips that internal buffer stalls — video freezes (often within ~10s)
+  // while audio keeps going until the recorder silently dies. Passing a
+  // timeslice forces it to flush periodically instead. Safari's fragmented-mp4
+  // output concatenates cleanly across chunks, so this doesn't reintroduce the
+  // A/V drift seen previously — that was scoped to the webm (Chrome) path,
+  // which is left untouched here.
+  if (mimeType.includes('mp4')) {
+    STATE.mediaRecorder.start(1000);
+  } else {
+    STATE.mediaRecorder.start();
+  }
   STATE.isRecording = true;
 
   document.getElementById('recordBtn').classList.add('recording');
