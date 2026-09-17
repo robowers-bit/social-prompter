@@ -590,19 +590,40 @@ html, body {
   gap: 8px;
 }
 .beat-card-header-info { flex: 1; min-width: 0; }
+.beat-label-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
 .beat-label {
-  font-size: 10px;
+  font-size: 32px;
   font-weight: 800;
   color: var(--accent);
   text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 2px;
+  letter-spacing: 0.6px;
 }
+.beat-info-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  opacity: 0.7;
+}
+.beat-info-btn:active { opacity: 1; }
 .beat-desc {
   font-size: 12px;
   color: var(--text-dim);
   line-height: 1.4;
+  margin-top: 4px;
+  display: none;
 }
+.beat-desc.show { display: block; }
 .beat-del-btn {
   flex-shrink: 0;
   background: transparent;
@@ -631,7 +652,7 @@ html, body {
   -webkit-appearance: none;
   min-height: 90px;
 }
-.beat-textarea::placeholder { color: rgba(255,255,255,0.55); }
+.beat-textarea::placeholder { color: #fff; }
 
 /* AI suggestion card inside a beat */
 .beat-suggestion {
@@ -917,30 +938,39 @@ html, body {
 
 #bulletContainer {
   display: none;
-  padding: 15vh 14px 80vh;
+  position: absolute;
+  inset: 0;
+  padding: 15vh 20px 0;
   flex-direction: column;
-  gap: 10px;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 14px;
 }
 .bullet-card {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
-  padding: 18px 16px;
-  font-size: 22px;
-  line-height: 1.5;
-  color: rgba(255,255,255,0.6);
-  font-weight: 500;
-  transition: all 0.2s;
+  border-radius: 14px;
+  padding: 16px 18px;
+  line-height: 1.45;
+  font-weight: 600;
+  transition: opacity 0.2s, font-size 0.2s;
   border-left: 4px solid transparent;
 }
-.bullet-card.active-bullet {
-  background: rgba(255,255,255,0.1);
-  border-color: rgba(255,255,255,0.2);
+.bullet-card.bullet-current {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.22);
   border-left-color: var(--accent);
   color: #fff;
+  font-size: 30px;
+  font-weight: 700;
 }
-.bullet-card.past-bullet {
-  opacity: 0.35;
+.bullet-card.bullet-upcoming {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.55);
+  font-size: 20px;
+}
+.bullet-card.bullet-upcoming.tier-2 {
+  color: rgba(255,255,255,0.32);
+  font-size: 17px;
 }
 .bullet-time {
   font-size: 11px;
@@ -950,7 +980,7 @@ html, body {
   margin-bottom: 6px;
   text-transform: uppercase;
 }
-.active-bullet .bullet-time { color: var(--accent); }
+.bullet-current .bullet-time { color: var(--accent); }
 
 #readingGradient {
   position: absolute;
@@ -989,19 +1019,27 @@ html, body {
 }
 #backBtn:active { background: rgba(255,255,255,0.2); }
 
-/* REC indicator + timer top-right */
+/* REC indicator + timer — big, centered near the front camera */
 #recIndicator {
   position: absolute;
   top: max(14px, env(safe-area-inset-top));
-  right: 12px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+#recIndicator.active { opacity: 1; }
+#recIndicator .rec-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  opacity: 0;
-  transition: opacity 0.3s;
 }
-#recIndicator.active { opacity: 1; }
 #recDot {
   width: 10px;
   height: 10px;
@@ -1020,10 +1058,12 @@ html, body {
   letter-spacing: 0.5px;
 }
 #recTimer {
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.8);
+  font-size: 44px;
+  font-weight: 800;
+  color: #fff;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.7);
 }
 
 /* Speed slider — right edge */
@@ -1568,8 +1608,10 @@ html, body {
 
   <!-- REC indicator + timer -->
   <div id="recIndicator">
-    <div id="recDot"></div>
-    <span id="recLabel">REC</span>
+    <div class="rec-row">
+      <div id="recDot"></div>
+      <span id="recLabel">REC</span>
+    </div>
     <span id="recTimer">0:00</span>
   </div>
 
@@ -1591,7 +1633,7 @@ html, body {
   </div>
 
   <!-- Bullet hint -->
-  <div id="bulletHint">Tap &#8594; next &nbsp;&#8226;&nbsp; Double-tap &#8592; back</div>
+  <div id="bulletHint">Tap left &#8592; back &nbsp;&#8226;&nbsp; Tap right next &#8594; &nbsp;&#8226;&nbsp; Drag &#8597; to jump</div>
 
   <!-- Record area -->
   <div id="recordArea">
@@ -2177,13 +2219,21 @@ function buildBeatCard(script, beat, idx) {
   card.innerHTML = `
     <div class="beat-card-header">
       <div class="beat-card-header-info">
-        <div class="beat-label">${escHtml(beat.label)}</div>
+        <div class="beat-label-row">
+          <div class="beat-label">${escHtml(beat.label)}</div>
+          <button class="beat-info-btn" type="button" title="More info" aria-label="More info">&#9432;</button>
+        </div>
         <div class="beat-desc">${escHtml(beat.desc)}</div>
       </div>
       ${isDeletable ? `<button class="beat-del-btn" title="Remove">&#10005;</button>` : ''}
     </div>
     <textarea class="beat-textarea" placeholder="Write your ${escHtml(beat.label.toLowerCase())} here…" rows="4">${escHtml(beat.content)}</textarea>
   `;
+
+  // Info button toggles the explainer line below the label
+  card.querySelector('.beat-info-btn').addEventListener('click', () => {
+    card.querySelector('.beat-desc').classList.toggle('show');
+  });
 
   // Textarea sync
   const ta = card.querySelector('.beat-textarea');
@@ -2672,42 +2722,56 @@ function setupBulletMode(script) {
   document.getElementById('prompterInner').style.display = 'none';
   document.getElementById('readingLine').style.display = 'none';
 
-  const container = document.getElementById('bulletContainer');
-  container.style.display = 'flex';
-  container.innerHTML = '';
-
-  STATE.bulletBeats = beats;
-  STATE.bulletIndex = 0;
+  document.getElementById('bulletContainer').style.display = 'flex';
 
   // Calculate cumulative time ranges (~3 words per second of spoken content)
   let cumSecs = 0;
-  beats.forEach((beat, i) => {
+  STATE.bulletBeats = beats.map(beat => {
     const wordCount = (beat.content || '').trim().split(/\s+/).filter(Boolean).length;
     const beatSecs = Math.max(3, Math.round(wordCount / 3));
     const start = cumSecs;
     const end = cumSecs + beatSecs;
     cumSecs = end;
-
-    const card = document.createElement('div');
-    card.className = 'bullet-card' + (i === 0 ? ' active-bullet' : '');
-    card.dataset.bulletIdx = i;
-
-    const timeEl = document.createElement('div');
-    timeEl.className = 'bullet-time';
-    timeEl.textContent = `${start}–${end}s`;
-
-    const textEl = document.createElement('div');
-    textEl.textContent = beat.bullet;
-
-    card.appendChild(timeEl);
-    card.appendChild(textEl);
-    container.appendChild(card);
+    return { text: beat.bullet, start, end };
   });
+  STATE.bulletIndex = 0;
+  renderBulletWindow();
 
   // Show hint briefly
   const hint = document.getElementById('bulletHint');
   hint.classList.add('show');
   setTimeout(() => hint.classList.remove('show'), 3000);
+}
+
+// Shows only the current bullet (large/bold) plus the next two (smaller, dimmer),
+// instead of the whole script, so the presenter isn't scanning a wall of text.
+function renderBulletWindow() {
+  const beats = STATE.bulletBeats || [];
+  const idx = STATE.bulletIndex;
+  const container = document.getElementById('bulletContainer');
+  container.innerHTML = '';
+
+  for (let offset = 0; offset < 3; offset++) {
+    const i = idx + offset;
+    if (i >= beats.length) break;
+    const beat = beats[i];
+
+    const card = document.createElement('div');
+    card.className = 'bullet-card' + (offset === 0 ? ' bullet-current' : (' bullet-upcoming' + (offset === 2 ? ' tier-2' : '')));
+
+    const timeEl = document.createElement('div');
+    timeEl.className = 'bullet-time';
+    timeEl.textContent = `${beat.start}–${beat.end}s`;
+
+    const textEl = document.createElement('div');
+    textEl.textContent = beat.text;
+
+    card.appendChild(timeEl);
+    card.appendChild(textEl);
+    container.appendChild(card);
+  }
+
+  applyFontSize();
 }
 
 /* ============================================================
@@ -2799,58 +2863,60 @@ function updatePauseOverlay() {
    BULLET NAVIGATION
    ============================================================ */
 function bulletAdvance() {
-  const beats = STATE.bulletBeats || [];
-  if (STATE.bulletIndex < beats.length - 1) {
-    setBulletIndex(STATE.bulletIndex + 1);
-  }
+  setBulletIndex(STATE.bulletIndex + 1);
 }
 
 function bulletBack() {
-  if (STATE.bulletIndex > 0) {
-    setBulletIndex(STATE.bulletIndex - 1);
-  }
+  setBulletIndex(STATE.bulletIndex - 1);
 }
 
 function setBulletIndex(idx) {
-  STATE.bulletIndex = idx;
-  const cards = document.querySelectorAll('.bullet-card');
-  cards.forEach((card, i) => {
-    card.classList.remove('active-bullet', 'past-bullet');
-    if (i < idx) card.classList.add('past-bullet');
-    else if (i === idx) card.classList.add('active-bullet');
-  });
-  // Scroll to keep active card visible
-  const active = document.querySelector('.bullet-card.active-bullet');
-  if (active) {
-    active.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
+  const beats = STATE.bulletBeats || [];
+  const clamped = Math.max(0, Math.min(beats.length - 1, idx));
+  if (clamped === STATE.bulletIndex) return;
+  STATE.bulletIndex = clamped;
+  renderBulletWindow();
 }
 
 /* ============================================================
    PHASE 2 — GESTURES
    ============================================================ */
+// Every this many px of vertical drag moves the bullet window one step —
+// lets the presenter hold and scrub up/down to re-rack to an earlier/later bullet.
+const BULLET_DRAG_STEP_PX = 70;
+
 function setupPrompterGestures() {
   const outer = document.getElementById('prompterOuter');
 
   let tapTimer = null;
   let lastTap = 0;
+  let dragStartX = null;
   let dragStartY = null;
   let dragStartPos = null;
+  let dragStartBulletIndex = 0;
   let isDragging = false;
   let isTouchEvent = false;
 
   /* ── Touch ── */
   outer.addEventListener('touchstart', (e) => {
     isTouchEvent = true;
+    dragStartX = e.touches[0].clientX;
     dragStartY = e.touches[0].clientY;
     dragStartPos = STATE.scrollPos;
+    dragStartBulletIndex = STATE.bulletIndex;
     isDragging = false;
   }, { passive: true });
 
   outer.addEventListener('touchmove', (e) => {
-    if (STATE.playbackMode === 'bullets') return;
-    if (!STATE.isPaused) return;
     const dy = dragStartY - e.touches[0].clientY;
+    if (STATE.playbackMode === 'bullets') {
+      if (Math.abs(dy) > 8) isDragging = true;
+      if (isDragging) {
+        setBulletIndex(dragStartBulletIndex + Math.round(dy / BULLET_DRAG_STEP_PX));
+      }
+      return;
+    }
+    if (!STATE.isPaused) return;
     if (Math.abs(dy) > 8) isDragging = true;
     if (isDragging) {
       applyTeleprompterScroll(dragStartPos + dy);
@@ -2859,27 +2925,36 @@ function setupPrompterGestures() {
 
   outer.addEventListener('touchend', (e) => {
     const wasDragging = isDragging;
+    const endX = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientX : dragStartX;
     isDragging = false;
     dragStartY = null;
     setTimeout(() => { isTouchEvent = false; }, 500);
     if (wasDragging) return;
-    handleTap();
+    handleTap(endX);
   }, { passive: true });
 
   /* ── Mouse drag (desktop) ── */
   outer.addEventListener('mousedown', (e) => {
     if (isTouchEvent) return;
-    if (STATE.playbackMode !== 'teleprompter') return;
+    dragStartX = e.clientX;
     dragStartY = e.clientY;
     dragStartPos = STATE.scrollPos;
+    dragStartBulletIndex = STATE.bulletIndex;
     isDragging = false;
   });
 
   outer.addEventListener('mousemove', (e) => {
     if (isTouchEvent) return;
-    if (STATE.playbackMode !== 'teleprompter') return;
     if (dragStartY === null) return;
     const dy = dragStartY - e.clientY;
+    if (STATE.playbackMode === 'bullets') {
+      if (Math.abs(dy) > 6) isDragging = true;
+      if (isDragging) {
+        setBulletIndex(dragStartBulletIndex + Math.round(dy / BULLET_DRAG_STEP_PX));
+      }
+      return;
+    }
+    if (STATE.playbackMode !== 'teleprompter') return;
     if (Math.abs(dy) > 6) isDragging = true;
     if (isDragging) {
       if (!STATE.isPaused) { STATE.isPaused = true; updatePauseOverlay(); }
@@ -2892,7 +2967,7 @@ function setupPrompterGestures() {
     const wasDragging = isDragging;
     isDragging = false;
     dragStartY = null;
-    if (!wasDragging) handleTap();
+    if (!wasDragging) handleTap(e.clientX);
   });
 
   outer.addEventListener('mouseleave', () => {
@@ -2902,6 +2977,12 @@ function setupPrompterGestures() {
 
   /* ── Mouse wheel (desktop scroll when paused) ── */
   outer.addEventListener('wheel', (e) => {
+    if (STATE.playbackMode === 'bullets') {
+      e.preventDefault();
+      if (e.deltaY > 0) bulletAdvance();
+      else if (e.deltaY < 0) bulletBack();
+      return;
+    }
     if (STATE.playbackMode !== 'teleprompter') return;
     e.preventDefault();
     if (!STATE.isPaused) { STATE.isPaused = true; updatePauseOverlay(); }
@@ -2918,26 +2999,27 @@ function setupPrompterGestures() {
     updateProgressBar();
   }
 
-  function handleTap() {
+  // Bullet mode: a plain tap on the left half goes back, right half advances —
+  // no double-tap timing needed, so going back is always one immediate tap away.
+  function handleTap(clientX) {
+    if (STATE.playbackMode === 'bullets') {
+      const rect = outer.getBoundingClientRect();
+      const x = (typeof clientX === 'number') ? clientX : rect.left + rect.width / 2;
+      if (x - rect.left < rect.width / 2) bulletBack();
+      else bulletAdvance();
+      return;
+    }
     const now = Date.now();
     if (now - lastTap < 300) {
       clearTimeout(tapTimer);
       lastTap = 0;
-      if (STATE.playbackMode === 'bullets') {
-        bulletBack();
-      } else {
-        if (STATE.isPaused) openInlineEdit();
-      }
+      if (STATE.isPaused) openInlineEdit();
     } else {
       lastTap = now;
       tapTimer = setTimeout(() => {
-        if (STATE.playbackMode === 'bullets') {
-          bulletAdvance();
-        } else {
-          STATE.isPaused = !STATE.isPaused;
-          updatePauseOverlay();
-          if (!STATE.isPaused) STATE.lastTimestamp = null;
-        }
+        STATE.isPaused = !STATE.isPaused;
+        updatePauseOverlay();
+        if (!STATE.isPaused) STATE.lastTimestamp = null;
       }, 280);
     }
   }
@@ -3000,9 +3082,12 @@ function adjustFont(delta) {
 
 function applyFontSize() {
   document.getElementById('prompterText').style.fontSize = STATE.fontSize + 'px';
-  // Also apply to bullet cards
-  document.querySelectorAll('.bullet-card').forEach(card => {
-    card.style.fontSize = Math.max(16, STATE.fontSize - 8) + 'px';
+  // Also apply to bullet cards, scaled down for the upcoming (smaller) tiers
+  const current = document.querySelector('.bullet-card.bullet-current');
+  if (current) current.style.fontSize = STATE.fontSize + 'px';
+  document.querySelectorAll('.bullet-card.bullet-upcoming').forEach(card => {
+    const tier2 = card.classList.contains('tier-2');
+    card.style.fontSize = Math.max(14, STATE.fontSize - (tier2 ? 16 : 10)) + 'px';
   });
 }
 
@@ -3037,7 +3122,9 @@ function startRecording() {
     if (e.data && e.data.size > 0) STATE.recordedChunks.push(e.data);
   };
   STATE.mediaRecorder.onstop = handleRecordingStop;
-  STATE.mediaRecorder.start(1000);
+  // No timeslice: passing one to start() makes Safari/Chrome mux each chunk with its
+  // own timestamp base, which is what causes audio/video to drift out of sync.
+  STATE.mediaRecorder.start();
   STATE.isRecording = true;
 
   document.getElementById('recordBtn').classList.add('recording');
@@ -3153,7 +3240,7 @@ function getSupportedMimeType() {
 async function requestMediaPermissions() {
   try {
     STATE.stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      video: { facingMode: 'user', width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 30 } },
       audio: true,
     });
     const preview = document.getElementById('cameraPreview');
