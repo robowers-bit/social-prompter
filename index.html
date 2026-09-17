@@ -791,6 +791,63 @@ html, body {
   flex-shrink: 0;
 }
 
+/* Bullet review — editable check before recording */
+.bullet-review-warning {
+  flex-shrink: 0;
+  background: rgba(229,57,53,0.15);
+  border-bottom: 1px solid rgba(229,57,53,0.4);
+  color: #ff8a80;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  line-height: 1.5;
+  padding: 12px 14px;
+}
+.bullet-review-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+#bulletReviewList {
+  padding: 14px 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bullet-review-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+.bullet-review-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.bullet-review-textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  font-family: var(--font-body);
+}
+.bullet-review-count {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: right;
+  margin-top: 4px;
+}
+.bullet-review-count.over { color: var(--danger); font-weight: 700; }
+
 /* ============================================================
    SPINNER / LOADING
    ============================================================ */
@@ -1575,6 +1632,31 @@ html, body {
 </div>
 
 <!-- ============================================================
+     BULLET REVIEW — editable check before recording
+     ============================================================ -->
+<div id="bulletReview" class="screen">
+
+  <div class="p1-header">
+    <div class="p1-header-left">
+      <button class="btn-icon" style="font-size:18px;padding:4px 6px;" onclick="showScreen('modeSelect')">&#8592;</button>
+      <span style="font-size:17px;font-weight:700;">Review Bullets</span>
+    </div>
+  </div>
+
+  <div class="bullet-review-warning">
+    &#9888;&#65039; CHECK BULLET POINTS BEFORE RECORDING — AI SUMMARIES MAY HAVE IMPACTED CONTEXT/WORDING
+  </div>
+
+  <div class="bullet-review-wrapper">
+    <div id="bulletReviewList"></div>
+    <div class="p1-actions">
+      <button class="btn btn-primary" onclick="confirmBulletReview()">Start Recording &#8594;</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================
      COUNTDOWN
      ============================================================ -->
 <div id="countdown" class="hidden">
@@ -2167,6 +2249,82 @@ function selectModeAndStart(mode) {
     script.playbackMode = mode;
     saveScripts();
   }
+  if (mode === 'bullets') {
+    openBulletReview();
+  } else {
+    startPrompter();
+  }
+}
+
+/* ============================================================
+   BULLET REVIEW — editable check before recording
+   ============================================================ */
+const BULLET_WORD_LIMIT = 12;
+
+async function openBulletReview() {
+  saveCurrentScriptFromUI();
+  const script = getCurrentScript();
+  if (!script) return;
+
+  const hasContent = script.beats.some(b => b.content.trim());
+  if (!hasContent) {
+    showError('Write some content in your beats first.', false);
+    return;
+  }
+
+  const hasBullets = script.beats.some(b => b.bullet && b.bullet.trim());
+  if (!hasBullets) {
+    if (!STATE.apiKey) {
+      showError('No API key — bullets need AI. Add your key or use Word for word mode.');
+      return;
+    }
+    showLoading('Generating bullet cues…');
+    try {
+      await generateBullets(script);
+      hideLoading();
+    } catch(err) {
+      hideLoading();
+      showError(classifyError(err));
+      return;
+    }
+  }
+
+  renderBulletReview(script);
+  showScreen('bulletReview');
+}
+
+function renderBulletReview(script) {
+  const list = document.getElementById('bulletReviewList');
+  list.innerHTML = '';
+
+  script.beats.filter(b => b.bullet && b.bullet.trim()).forEach(beat => {
+    const item = document.createElement('div');
+    item.className = 'bullet-review-item';
+    item.innerHTML = `
+      <div class="bullet-review-label">${escHtml(beat.label)}</div>
+      <textarea class="bullet-review-textarea" rows="2">${escHtml(beat.bullet)}</textarea>
+      <div class="bullet-review-count"></div>
+    `;
+
+    const ta = item.querySelector('.bullet-review-textarea');
+    const countEl = item.querySelector('.bullet-review-count');
+    const updateCount = () => {
+      const words = ta.value.trim().split(/\s+/).filter(Boolean).length;
+      countEl.textContent = `${words} word${words === 1 ? '' : 's'}`;
+      countEl.classList.toggle('over', words > BULLET_WORD_LIMIT);
+    };
+    ta.addEventListener('input', () => {
+      beat.bullet = ta.value;
+      updateCount();
+    });
+    updateCount();
+
+    list.appendChild(item);
+  });
+}
+
+function confirmBulletReview() {
+  saveScripts();
   startPrompter();
 }
 
@@ -2652,8 +2810,8 @@ async function generateBullets(script) {
     `[${i}] ${b.label.toUpperCase()}: ${b.content || '(empty)'}`
   ).join('\n\n');
 
-  const systemPrompt = `You are an expert teleprompter coach. Condense each beat into a short speaking cue (1-2 sentences max) that a presenter can glance at to remember what to say. Keep the natural voice. Do NOT include any label, heading, or colon prefix in the bullet text — just the cue itself. Return ONLY valid JSON:
-{"bullets":[{"beatIndex":0,"bullet":"short cue text with no label prefix"}]}
+  const systemPrompt = `You are an expert teleprompter coach. Condense each beat into a short speaking cue that a presenter can glance at to remember what to say. STRICT LIMIT: 10-12 words per cue, never more. Keep the presenter's natural voice and the original meaning — do not introduce wording, framing, or claims that change the editorial intent of the beat. Do NOT include any label, heading, or colon prefix in the bullet text — just the cue itself. Return ONLY valid JSON:
+{"bullets":[{"beatIndex":0,"bullet":"short cue text, 10-12 words max, no label prefix"}]}
 Include all beats. No markdown, no explanation.`;
   const userPrompt = `SCRIPT BEATS:\n${beatsText}`;
 
@@ -2901,6 +3059,11 @@ function setBulletIndex(idx) {
 // Every this many px of vertical drag moves the bullet window one step —
 // lets the presenter hold and scrub up/down to re-rack to an earlier/later bullet.
 const BULLET_DRAG_STEP_PX = 70;
+// A plain tap/click almost always has a few px of jitter, especially with a
+// mouse or trackpad. Too small a threshold here falsely flags taps as drags,
+// which swallows the tap (no navigation happens) — so this is deliberately
+// generous relative to BULLET_DRAG_STEP_PX.
+const BULLET_TAP_SLOP_PX = 18;
 
 function setupPrompterGestures() {
   const outer = document.getElementById('prompterOuter');
@@ -2927,7 +3090,7 @@ function setupPrompterGestures() {
   outer.addEventListener('touchmove', (e) => {
     const dy = dragStartY - e.touches[0].clientY;
     if (STATE.playbackMode === 'bullets') {
-      if (Math.abs(dy) > 8) isDragging = true;
+      if (Math.abs(dy) > BULLET_TAP_SLOP_PX) isDragging = true;
       if (isDragging) {
         setBulletIndex(dragStartBulletIndex + Math.round(dy / BULLET_DRAG_STEP_PX));
       }
@@ -2941,8 +3104,14 @@ function setupPrompterGestures() {
   }, { passive: true });
 
   outer.addEventListener('touchend', (e) => {
-    const wasDragging = isDragging;
-    const endX = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientX : dragStartX;
+    const endTouch = e.changedTouches && e.changedTouches[0];
+    const endX = endTouch ? endTouch.clientX : dragStartX;
+    // Decide tap-vs-drag off the NET displacement at release, not whether the
+    // path ever momentarily crossed the slop threshold — a real tap can have
+    // a little jitter/overshoot mid-gesture and still end up back near the
+    // start point, and that should still count as a tap.
+    const netDy = (endTouch && dragStartY !== null) ? Math.abs(dragStartY - endTouch.clientY) : 0;
+    const wasDragging = isDragging && !(STATE.playbackMode === 'bullets' && netDy <= BULLET_TAP_SLOP_PX);
     isDragging = false;
     dragStartY = null;
     setTimeout(() => { isTouchEvent = false; }, 500);
@@ -2965,7 +3134,7 @@ function setupPrompterGestures() {
     if (dragStartY === null) return;
     const dy = dragStartY - e.clientY;
     if (STATE.playbackMode === 'bullets') {
-      if (Math.abs(dy) > 6) isDragging = true;
+      if (Math.abs(dy) > BULLET_TAP_SLOP_PX) isDragging = true;
       if (isDragging) {
         setBulletIndex(dragStartBulletIndex + Math.round(dy / BULLET_DRAG_STEP_PX));
       }
@@ -2981,7 +3150,9 @@ function setupPrompterGestures() {
 
   outer.addEventListener('mouseup', (e) => {
     if (isTouchEvent) return;
-    const wasDragging = isDragging;
+    // Same net-displacement check as touchend — see comment there.
+    const netDy = (dragStartY !== null) ? Math.abs(dragStartY - e.clientY) : 0;
+    const wasDragging = isDragging && !(STATE.playbackMode === 'bullets' && netDy <= BULLET_TAP_SLOP_PX);
     isDragging = false;
     dragStartY = null;
     if (!wasDragging) handleTap(e.clientX);
