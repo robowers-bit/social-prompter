@@ -719,7 +719,7 @@ html, body {
 
 /* Add body button */
 #addBodyBtn {
-  margin: 4px 14px 0;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -734,7 +734,7 @@ html, body {
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  width: calc(100% - 28px);
+  width: 100%;
 }
 #addBodyBtn:active { opacity: 0.6; background: var(--surface); }
 
@@ -2175,18 +2175,35 @@ function selectModeAndStart(mode) {
    ============================================================ */
 function renderBeats(script) {
   const container = document.getElementById('beatsContainer');
+  const addBodyBtn = document.getElementById('addBodyBtn');
+
+  // Detach the button before wiping the container — innerHTML='' would
+  // otherwise destroy it once it has been moved inside on a prior render
+  if (addBodyBtn.parentElement === container) {
+    container.removeChild(addBodyBtn);
+  }
   container.innerHTML = '';
 
   // Renumber body/rehook labels
   relabelBeats(script.beats);
 
   script.beats.forEach((beat, idx) => {
+    // Place the add-body button right before the Payoff/CTA beat,
+    // i.e. directly after the last Body/Rehook beat
+    if (beat.type === 'payoff') {
+      container.appendChild(addBodyBtn);
+    }
     const card = buildBeatCard(script, beat, idx);
     container.appendChild(card);
   });
 
+  // Fallback: if there's no payoff beat, keep the button at the end
+  if (addBodyBtn.parentElement !== container) {
+    container.appendChild(addBodyBtn);
+  }
+
   // Show/hide add body button — always visible
-  document.getElementById('addBodyBtn').style.display = 'flex';
+  addBodyBtn.style.display = 'flex';
 
   updateDurationCounter();
 }
