@@ -3380,11 +3380,113 @@ function updateTimerDisplay() {
   document.getElementById('recTimer').textContent = mm + ':' + ss;
 }
 
-function handleRecordingStop() {
+/* ------------------------------------------------------------
+   SAFARI MP4 REPAIR
+   Safari's MediaRecorder sometimes writes one video sample with a duration
+   of 0xFFFFFFFF ticks (about 83 days at the 600 Hz video timescale). It
+   looks like a duration of -1 stored as an unsigned number. ffmpeg ignores
+   it, but iOS Files and Photos hold that frame for the full duration, so
+   the picture freezes while the audio plays on, and Photos shows a length
+   of roughly 1,988 hours.
+
+   This scans only the small moof (fragment header) boxes, never the video
+   data, and overwrites each bad 4-byte duration with 1 tick. No re-encode,
+   file size unchanged. If anything goes wrong the original blob is returned.
+   ------------------------------------------------------------ */
+function mp4FourCC(view, offset) {
+  return String.fromCharCode(
+    view.getUint8(offset), view.getUint8(offset + 1),
+    view.getUint8(offset + 2), view.getUint8(offset + 3)
+  );
+}
+
+// Walk one moof box and record the absolute byte offset of every sample
+// duration equal to `bad`. `view` covers the whole moof; `base` is where
+// that moof starts in the full file.
+function collectBadSampleDurations(view, base, bad, out) {
+  const end = view.byteLength;
+  let p = 8;                                    // skip the moof header
+  while (p + 8 <= end) {
+    const size = view.getUint32(p);
+    if (size < 8) break;
+    if (mp4FourCC(view, p + 4) === 'traf') {
+      const trafEnd = Math.min(end, p + size);
+      let q = p + 8;
+      while (q + 8 <= trafEnd) {
+        const childSize = view.getUint32(q);
+        if (childSize < 8) break;
+        if (mp4FourCC(view, q + 4) === 'trun') {
+          const flags = view.getUint32(q + 8) & 0xFFFFFF;
+          const count = view.getUint32(q + 12);
+          let o = q + 16;
+          if (flags & 0x1) o += 4;             // data_offset
+          if (flags & 0x4) o += 4;             // first_sample_flags
+          if (flags & 0x100) {                 // per-sample duration present
+            const stride = 4
+              + ((flags & 0x200) ? 4 : 0)      // sample size
+              + ((flags & 0x400) ? 4 : 0)      // sample flags
+              + ((flags & 0x800) ? 4 : 0);     // composition offset
+            for (let i = 0; i < count && o + 4 <= trafEnd; i++, o += stride) {
+              if (view.getUint32(o) === bad) out.push(base + o);
+            }
+          }
+        }
+        q += childSize;
+      }
+    }
+    p += size;
+  }
+}
+
+async function repairSafariMp4(blob) {
+  try {
+    const BAD = 0xFFFFFFFF;
+    const offsets = [];
+    const total = blob.size;
+    let pos = 0;
+    while (pos + 8 <= total) {
+      const head = new DataView(await blob.slice(pos, pos + 16).arrayBuffer());
+      if (head.byteLength < 8) break;
+      let boxSize = head.getUint32(0);
+      const type = mp4FourCC(head, 4);
+      let headerSize = 8;
+      if (boxSize === 1 && head.byteLength >= 16) {
+        boxSize = Number(head.getBigUint64(8));
+        headerSize = 16;
+      } else if (boxSize === 0) {
+        boxSize = total - pos;
+      }
+      if (boxSize < headerSize) break;
+      if (type === 'moof') {
+        const moof = new DataView(await blob.slice(pos, pos + boxSize).arrayBuffer());
+        collectBadSampleDurations(moof, pos, BAD, offsets);
+      }
+      pos += boxSize;
+    }
+    if (!offsets.length) return blob;
+
+    const oneTick = new Uint8Array([0, 0, 0, 1]);
+    const parts = [];
+    let last = 0;
+    for (const off of offsets) {
+      parts.push(blob.slice(last, off), oneTick);
+      last = off + 4;
+    }
+    parts.push(blob.slice(last));
+    console.info('[Recorder] repaired ' + offsets.length + ' bad sample duration(s)');
+    return new Blob(parts, { type: blob.type });
+  } catch (e) {
+    console.warn('[Recorder] MP4 repair skipped:', e);
+    return blob;
+  }
+}
+
+async function handleRecordingStop() {
   if (STATE.recordedChunks.length === 0) return;
 
   const mimeType = STATE.mediaRecorder.mimeType || 'video/mp4';
-  const blob = new Blob(STATE.recordedChunks, { type: mimeType });
+  let blob = new Blob(STATE.recordedChunks, { type: mimeType });
+  if (mimeType.includes('mp4')) blob = await repairSafariMp4(blob);
 
   if (STATE.lastBlobUrl) URL.revokeObjectURL(STATE.lastBlobUrl);
   STATE.lastBlobUrl = URL.createObjectURL(blob);
