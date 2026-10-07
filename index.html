@@ -190,6 +190,14 @@ html, body {
   letter-spacing: -0.4px;
   color: var(--text);
 }
+.app-version {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--muted, rgba(255,255,255,0.45));
+  opacity: 0.8;
+  margin-top: 2px;
+}
 .home-body {
   flex: 1;
   overflow-y: auto;
@@ -960,6 +968,7 @@ html, body {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   overflow: hidden;
+  touch-action: none; /* we handle finger drags ourselves; stop the browser panning/refreshing */
 }
 
 #prompterInner {
@@ -1449,6 +1458,7 @@ html, body {
   <div id="apiStatus" style="display:none;font-size:13px;text-align:center;padding:4px 0;width:100%;max-width:360px;"></div>
   <button class="btn btn-primary" id="saveKeyBtn" onclick="saveApiKey()">Save Key</button>
   <p style="font-size:12px;margin-top:-4px;">Your key is stored only on this device.</p>
+  <div class="app-version" data-app-version></div>
   <div id="apiModalBottom"></div>
 </div>
 
@@ -1499,7 +1509,10 @@ html, body {
      ============================================================ -->
 <div id="homeScreen" class="screen">
   <div class="home-header">
-    <h1>Social Prompter</h1>
+    <div>
+      <h1>Social Prompter</h1>
+      <div class="app-version" data-app-version></div>
+    </div>
     <button class="btn-icon" onclick="openSettings()" title="API Key Settings">&#9881;&#65039;</button>
   </div>
   <div class="home-body">
@@ -1770,6 +1783,11 @@ const REHOOK_TEMPLATE = { type: 'rehook', label: 'Rehook', desc: 'Re-engage and 
 const BODY_TEMPLATE   = { type: 'body',   label: 'Body',   desc: 'Deliver real value' };
 
 /* ============================================================
+   VERSION — bump this on every release so the build on the phone is obvious
+   ============================================================ */
+const APP_VERSION = 'v2.1 · 7 Oct 2026 · recording fix + drag-scroll';
+
+/* ============================================================
    STATE
    ============================================================ */
 let STATE = {
@@ -1784,6 +1802,7 @@ let STATE = {
   fontSize: 32,
   isScrolling: false,
   isPaused: false,
+  isUserDragging: false,
   rafId: null,
   lastTimestamp: null,
 
@@ -1945,6 +1964,7 @@ function makeScript(name) {
    INIT
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-app-version]').forEach(el => { el.textContent = APP_VERSION; });
   // Migrate old key
   try {
     const oldKey = localStorage.getItem('tp_api_key');
@@ -3001,7 +3021,7 @@ function scrollStep(timestamp) {
   const delta = timestamp - STATE.lastTimestamp;
   STATE.lastTimestamp = timestamp;
 
-  if (!STATE.isPaused) {
+  if (!STATE.isPaused && !STATE.isUserDragging) {
     const pxPerMs = SPEED_MAP[STATE.scrollSpeed - 1] / 1000;
     STATE.scrollPos += pxPerMs * delta;
 
@@ -3078,6 +3098,12 @@ function setupPrompterGestures() {
   let isTouchEvent = false;
 
   /* ── Touch ── */
+  outer.addEventListener('touchcancel', () => {
+    isDragging = false;
+    dragStartY = null;
+    endUserDrag();
+  }, { passive: true });
+
   outer.addEventListener('touchstart', (e) => {
     isTouchEvent = true;
     dragStartX = e.touches[0].clientX;
@@ -3096,9 +3122,12 @@ function setupPrompterGestures() {
       }
       return;
     }
-    if (!STATE.isPaused) return;
+    // Dragging works while auto-scroll is running: the text sticks to the finger
+    // (auto-advance is held still), and auto-scroll carries on from the new
+    // position when the finger lifts. No pause needed.
     if (Math.abs(dy) > 8) isDragging = true;
     if (isDragging) {
+      STATE.isUserDragging = true;
       applyTeleprompterScroll(dragStartPos + dy);
     }
   }, { passive: true });
@@ -3114,6 +3143,7 @@ function setupPrompterGestures() {
     const wasDragging = isDragging && !(STATE.playbackMode === 'bullets' && netDy <= BULLET_TAP_SLOP_PX);
     isDragging = false;
     dragStartY = null;
+    endUserDrag();
     setTimeout(() => { isTouchEvent = false; }, 500);
     if (wasDragging) return;
     handleTap(endX);
@@ -3143,7 +3173,7 @@ function setupPrompterGestures() {
     if (STATE.playbackMode !== 'teleprompter') return;
     if (Math.abs(dy) > 6) isDragging = true;
     if (isDragging) {
-      if (!STATE.isPaused) { STATE.isPaused = true; updatePauseOverlay(); }
+      STATE.isUserDragging = true;
       applyTeleprompterScroll(dragStartPos + dy);
     }
   });
@@ -3155,12 +3185,14 @@ function setupPrompterGestures() {
     const wasDragging = isDragging && !(STATE.playbackMode === 'bullets' && netDy <= BULLET_TAP_SLOP_PX);
     isDragging = false;
     dragStartY = null;
+    endUserDrag();
     if (!wasDragging) handleTap(e.clientX);
   });
 
   outer.addEventListener('mouseleave', () => {
     isDragging = false;
     dragStartY = null;
+    endUserDrag();
   });
 
   /* ── Mouse wheel (desktop scroll when paused) ── */
@@ -3173,11 +3205,16 @@ function setupPrompterGestures() {
     }
     if (STATE.playbackMode !== 'teleprompter') return;
     e.preventDefault();
-    if (!STATE.isPaused) { STATE.isPaused = true; updatePauseOverlay(); }
     applyTeleprompterScroll(STATE.scrollPos + e.deltaY);
   }, { passive: false });
 
   /* ── Shared helpers ── */
+  function endUserDrag() {
+    if (!STATE.isUserDragging) return;
+    STATE.isUserDragging = false;
+    STATE.lastTimestamp = null; // don't let the time spent dragging turn into a jump
+  }
+
   function applyTeleprompterScroll(targetPos) {
     const inner = document.getElementById('prompterInner');
     const outerEl = document.getElementById('prompterOuter');
